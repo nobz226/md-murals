@@ -35,6 +35,7 @@ function Header({ currentCategory }) {
           <li><Link to="/exterior" onClick={closeMenu}>Exterior Murals</Link></li>
           <li><Link to="/canvas" onClick={closeMenu}>Canvas</Link></li>
         </ul>
+        
       </div>
       <div className="location-section">
         <h3>+Studio</h3>

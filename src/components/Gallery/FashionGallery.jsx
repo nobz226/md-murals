@@ -4,7 +4,6 @@ import { Draggable } from 'gsap/dist/Draggable';
 import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
 import { CustomEase } from 'gsap/dist/CustomEase';
 import { Flip } from 'gsap/dist/Flip';
-import Controls from '../Controls';
 import ProjectDetail from './ProjectDetail';
 
 // Register GSAP plugins
@@ -73,73 +72,12 @@ function FashionGallery({ projects, category }) {
     scalingOverlay: null
   });
 
-  const [currentZoom, setCurrentZoom] = useState(0.6);
+  const currentZoom = 0.6; // Fixed zoom level
   const gridItemsRef = useRef([]);
   const gridDimensionsRef = useRef({});
   const lastValidPositionRef = useRef({ x: 0, y: 0 });
   const customEaseRef = useRef(null);
   const centerEaseRef = useRef(null);
-
-  // Handle zoom changes
-  const handleZoomChange = (newZoom) => {
-    if (zoomState.isActive) return;
-    
-    const gap = calculateGapForZoom(newZoom);
-    config.currentGap = gap;
-    config.currentZoom = newZoom;
-    calculateGridDimensions(gap);
-
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-
-    // Animate zoom
-    gsap.to(canvasWrapperRef.current, {
-      scale: newZoom,
-      duration: 1.2,
-      ease: customEaseRef.current || 'power2.inOut',
-      onUpdate: () => {
-        const bounds = calculateBounds();
-        if (draggableRef.current) {
-          draggableRef.current.applyBounds(bounds);
-        }
-      },
-      onComplete: () => {
-        initDraggable();
-        
-        // Center if grid is smaller than viewport
-        const bounds = calculateBounds();
-        if (scaledWidth <= vw || scaledHeight <= vh) {
-          gsap.to(canvasWrapperRef.current, {
-            x: bounds.minX,
-            y: bounds.minY,
-            duration: 0.8,
-            ease: centerEaseRef.current || 'power2.inOut'
-          });
-        }
-      }
-    });
-
-    setCurrentZoom(newZoom);
-  };
-
-  // Auto-fit zoom calculation
-  const handleAutoFit = () => {
-    if (zoomState.isActive) return;
-
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const margin = 64;
-
-    calculateGridDimensions(config.currentGap);
-    const { width, height } = gridDimensionsRef.current;
-
-    const scaleX = (vw - margin * 2) / width;
-    const scaleY = (vh - margin * 2) / height;
-    const fitZoom = Math.min(scaleX, scaleY, 1.0);
-
-    handleZoomChange(fitZoom);
-  };
 
   // Initialize custom eases
   useEffect(() => {
@@ -485,13 +423,6 @@ function FashionGallery({ projects, category }) {
           </div>
         </div>
       </div>
-
-      <Controls 
-        currentZoom={currentZoom}
-        setCurrentZoom={handleZoomChange}
-        isZoomMode={zoomState.isActive}
-        onAutoFit={handleAutoFit}
-      />
 
       {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
         <ProjectDetail
