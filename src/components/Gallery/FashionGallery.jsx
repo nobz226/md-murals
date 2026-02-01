@@ -22,7 +22,7 @@ function FashionGallery({ projects, category }) {
     if (vw <= 600) {
       // Mobile
       return {
-        itemSize: 200,
+        itemSize: 280,
         baseGap: 16,
         currentZoom: 0.6,
         currentGap: 32
@@ -30,7 +30,7 @@ function FashionGallery({ projects, category }) {
     } else if (vw <= 900) {
       // Tablet
       return {
-        itemSize: 250,
+        itemSize: 350,
         baseGap: 16,
         currentZoom: 0.6,
         currentGap: 32
@@ -38,7 +38,7 @@ function FashionGallery({ projects, category }) {
     } else if (vw <= 1400) {
       // Small desktop
       return {
-        itemSize: 280,
+        itemSize: 380,
         baseGap: 16,
         currentZoom: 0.6,
         currentGap: 32
@@ -46,7 +46,7 @@ function FashionGallery({ projects, category }) {
     } else {
       // Large desktop
       return {
-        itemSize: 320,
+        itemSize: 420,
         baseGap: 16,
         currentZoom: 0.6,
         currentGap: 32
@@ -206,9 +206,9 @@ function FashionGallery({ projects, category }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     
-    // Target 70% of viewport
-    const targetWidth = vw * 0.7;
-    const targetHeight = vh * 0.7;
+    // Target 90% of viewport for larger appearance
+    const targetWidth = vw * 0.9;
+    const targetHeight = vh * 0.9;
     
     // Calculate zoom to fit
     const zoomToFitWidth = targetWidth / gridWidth;
