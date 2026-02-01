@@ -130,6 +130,11 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
 
     // Cleanup
     return () => {
+      // Restore source image visibility
+      if (selectedItem && selectedItem.img) {
+        gsap.set(selectedItem.img, { opacity: 1 });
+      }
+      
       if (scalingOverlayRef.current) {
         scalingOverlayRef.current.remove();
       }

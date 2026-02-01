@@ -21,6 +21,7 @@ function Header({ currentCategory }) {
             <div className="circle circle-1"></div>
             <div className="circle circle-2"></div>
           </div>
+          <span className="logo-text">Mihai Darvasa</span>
         </Link>
         <button className="hamburger" onClick={toggleMenu} aria-label="Toggle menu">
           <span></span>

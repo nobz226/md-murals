@@ -89,7 +89,7 @@ body.zoom-mode {
 .nav-section {
   grid-column: 1 / span 3;
   display: flex;
-  align-items: center;
+  align-items: start;
   gap: 1rem;
 }
 
@@ -152,24 +152,22 @@ body.zoom-mode {
 
 /* ===== LOGO COMPONENT ===== */
 .logo-container {
-  margin-bottom: var(--spacing-md);
-  display: block;
-  width: 3rem;
-  height: 1.5rem;
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   cursor: pointer;
 }
 
 .logo-circles {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 3rem;
+  height: 1.5rem;
+  flex-shrink: 0;
 }
 
 .circle {
   position: absolute;
   border-radius: 50%;
-  transition: transform var(--transition-medium);
   width: 1.4rem;
   height: 1.4rem;
   background-color: var(--color-text);
@@ -187,12 +185,20 @@ body.zoom-mode {
   mix-blend-mode: exclusion;
 }
 
-.logo-container:hover .circle-1 {
-  transform: translate(-0.5rem, -50%);
+.logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
 }
 
-.logo-container:hover .circle-2 {
-  transform: translate(0.5rem, -50%);
+.logo-container::after {
+  display: none;
+}
+
+.logo-container:hover {
+  color: inherit;
+  mix-blend-mode: normal;
 }
 
 /* Key hint styling */
