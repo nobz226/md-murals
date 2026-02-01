@@ -139,12 +139,14 @@ function FashionGallery({ projects, category }) {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-      const centerX = (vw - scaledWidth) / 2;
-      const centerY = (vh - scaledHeight) / 2;
+      const marginX = Math.max(config.currentGap * currentZoom, 100);
+      const marginY = Math.max(config.currentGap * currentZoom, 200);
+      const startX = marginX;
+      const startY = marginY;
       
-      gsap.set(canvasWrapperRef.current, { x: centerX, y: centerY });
-      lastValidPositionRef.current.x = centerX;
-      lastValidPositionRef.current.y = centerY;
+      gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
+      lastValidPositionRef.current.x = startX;
+      lastValidPositionRef.current.y = startY;
       
       // Reinitialize draggable with new bounds
       initDraggable();
@@ -207,21 +209,19 @@ function FashionGallery({ projects, category }) {
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
     // Increase margin to allow viewing the full grid
     const marginX = Math.max(config.currentGap * currentZoom, 100);
-    const marginY = Math.max(config.currentGap * currentZoom, 100);
+    const marginY = Math.max(config.currentGap * currentZoom, 200);
     
     let minX, maxX, minY, maxY;
     
     if (scaledWidth <= vw) {
-      const centerX = (vw - scaledWidth) / 2;
-      minX = maxX = centerX;
+      minX = maxX = marginX;
     } else {
       maxX = marginX;
       minX = vw - scaledWidth - marginX;
     }
     
     if (scaledHeight <= vh) {
-      const centerY = (vh - scaledHeight) / 2;
-      minY = maxY = centerY;
+      minY = maxY = marginY;
     } else {
       maxY = marginY;
       minY = vh - scaledHeight - marginY;
@@ -448,12 +448,16 @@ function FashionGallery({ projects, category }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-    const centerX = (vw - scaledWidth) / 2;
-    const centerY = (vh - scaledHeight) / 2;
+    
+    // Position grid with slight offset from top-left instead of center
+    const marginX = Math.max(config.currentGap * autoZoom, 100);
+    const marginY = Math.max(config.currentGap * autoZoom, 200);
+    const startX = marginX;
+    const startY = marginY;
 
-    gsap.set(canvasWrapperRef.current, { x: centerX, y: centerY });
-    lastValidPositionRef.current.x = centerX;
-    lastValidPositionRef.current.y = centerY;
+    gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
+    lastValidPositionRef.current.x = startX;
+    lastValidPositionRef.current.y = startY;
 
     generateGridItems();
 
