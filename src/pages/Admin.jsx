@@ -1,0 +1,78 @@
+import { useState } from 'react';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import ProjectForm from '../components/Admin/ProjectForm';
+import ProjectList from '../components/Admin/ProjectList';
+
+function Admin() {
+  const [showForm, setShowForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  
+  const projects = useQuery(api.projects.getAllProjects);
+  const deleteProject = useMutation(api.projects.deleteProject);
+
+  const handleEdit = (project) => {
+    setEditingProject(project);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (projectId) => {
+    if (confirm('Are you sure you want to delete this project?')) {
+      await deleteProject({ id: projectId });
+    }
+  };
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingProject(null);
+  };
+
+  return (
+    <div style={{ 
+      padding: '2rem', 
+      color: 'white',
+      minHeight: '100vh',
+      background: '#000'
+    }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '2rem'
+        }}>
+          <h1>Admin Dashboard</h1>
+          <button 
+            onClick={() => setShowForm(true)}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: '#fff',
+              color: '#000',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            + New Project
+          </button>
+        </div>
+
+        {showForm && (
+          <ProjectForm 
+            project={editingProject}
+            onClose={handleFormClose}
+          />
+        )}
+
+        <ProjectList 
+          projects={projects || []}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default Admin;

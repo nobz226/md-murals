@@ -1,0 +1,35 @@
+{
+  "name": "md-murals",
+  "version": "1.0.0",
+  "description": "Mihai Darvasa Portfolio - Mural and Canvas Artist",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "convex": "convex dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nobz226/md-murals.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nobz226/md-murals/issues"
+  },
+  "homepage": "https://github.com/nobz226/md-murals#readme",
+  "dependencies": {
+    "@fancyapps/ui": "^6.1.10",
+    "convex": "^1.31.7",
+    "gsap": "^3.14.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.2",
+    "vite": "^7.3.1"
+  }
+}
