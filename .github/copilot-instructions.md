@@ -130,13 +130,21 @@ Storage URLs auto-generated via `ctx.storage.getUrl(storageId)` in backend
 ## GSAP Gallery Interactions
 
 ### Grid System ([FashionGallery.jsx](../src/components/Gallery/FashionGallery.jsx))
-- **Responsive breakpoints** (auto-recalculates on window resize):
-  - Mobile (≤600px): 6×4 grid, 200px items
-  - Tablet (≤900px): 7×8 grid, 250px items
-  - Small Desktop (≤1400px): 8×10 grid, 280px items
-  - Large Desktop (>1400px): 8×12 grid, 320px items
+- **Dynamic grid calculation** based on project count:
+  - Uses `calculateOptimalGrid(projects.length)` to determine rows/cols
+  - Formula: `cols = Math.ceil(Math.sqrt(numProjects * 1.5))`, `rows = Math.ceil(numProjects / cols)`
+  - Creates slightly wider than tall grid for better visual balance
+  - Each project appears exactly once (no cycling or duplicates)
+- **Responsive item sizes** (auto-recalculates on window resize):
+  - Mobile (≤600px): 200px items
+  - Tablet (≤900px): 250px items
+  - Small Desktop (≤1400px): 280px items
+  - Large Desktop (>1400px): 320px items
+- **Auto-fit zoom**: Scales grid to fit 70% of viewport on initial load
+  - Calculated via `calculateAutoFitZoom()` - uses smaller of width/height fit ratio
+  - Ensures all projects visible without dragging
+  - Capped at 1.0 max zoom
 - Gap dynamically calculated: `zoom >= 1.0 ? 16 : zoom >= 0.6 ? 32 : 64`
-- Projects cycle via `projectIndex % projects.length` to fill grid
 - Uses refs for GSAP: `viewportRef`, `canvasWrapperRef`, `gridContainerRef`, `draggableRef`
 
 ### Draggable Configuration
@@ -223,11 +231,10 @@ Category links in Header component update route, triggering query change and gri
 ### Grid Regeneration
 Triggered on:
 - Projects data changes (Convex reactivity)
-- Zoom level changes
 - Category route changes
-- **Window resize** (uses `getResponsiveConfig()` to recalculate grid dimensions)
+- **Window resize** (uses `calculateOptimalGrid()` to recalculate grid dimensions based on project count)
 
-Always clears `gridContainer.innerHTML` and rebuilds from scratch
+Always clears `gridContainer.innerHTML` and rebuilds from scratch with exact number of projects (no duplicates)
 
 ## File Upload Flow
 1. User selects files in ImageUploader

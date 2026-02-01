@@ -24,8 +24,6 @@ function FashionGallery({ projects, category }) {
       return {
         itemSize: 200,
         baseGap: 16,
-        rows: 6,
-        cols: 4,
         currentZoom: 0.6,
         currentGap: 32
       };
@@ -34,8 +32,6 @@ function FashionGallery({ projects, category }) {
       return {
         itemSize: 250,
         baseGap: 16,
-        rows: 7,
-        cols: 8,
         currentZoom: 0.6,
         currentGap: 32
       };
@@ -44,8 +40,6 @@ function FashionGallery({ projects, category }) {
       return {
         itemSize: 280,
         baseGap: 16,
-        rows: 8,
-        cols: 10,
         currentZoom: 0.6,
         currentGap: 32
       };
@@ -54,12 +48,21 @@ function FashionGallery({ projects, category }) {
       return {
         itemSize: 320,
         baseGap: 16,
-        rows: 8,
-        cols: 12,
         currentZoom: 0.6,
         currentGap: 32
       };
     }
+  };
+
+  // Calculate optimal grid layout for projects
+  const calculateOptimalGrid = (numProjects) => {
+    if (numProjects === 0) return { rows: 0, cols: 0 };
+    
+    // Calculate columns based on aspect ratio preference (slightly wider than tall)
+    const cols = Math.ceil(Math.sqrt(numProjects * 1.5));
+    const rows = Math.ceil(numProjects / cols);
+    
+    return { rows, cols };
   };
   
   const [config, setConfig] = useState(getResponsiveConfig());
@@ -121,8 +124,9 @@ function FashionGallery({ projects, category }) {
     
     // Only regenerate if we already have items (this is a resize, not initial load)
     if (gridItemsRef.current.length > 0) {
+      const { rows, cols } = calculateOptimalGrid(projects.length);
       const gap = calculateGapForZoom(currentZoom);
-      calculateGridDimensions(gap);
+      calculateGridDimensions(gap, rows, cols);
       
       generateGridItems();
       
@@ -155,19 +159,45 @@ function FashionGallery({ projects, category }) {
   };
 
   // Calculate grid dimensions
-  const calculateGridDimensions = (gap) => {
-    const totalWidth = config.cols * (config.itemSize + gap) - gap;
-    const totalHeight = config.rows * (config.itemSize + gap) - gap;
+  const calculateGridDimensions = (gap, rows, cols) => {
+    const totalWidth = cols * (config.itemSize + gap) - gap;
+    const totalHeight = rows * (config.itemSize + gap) - gap;
     
     gridDimensionsRef.current = {
       width: totalWidth,
       height: totalHeight,
       scaledWidth: totalWidth * currentZoom,
       scaledHeight: totalHeight * currentZoom,
-      gap: gap
+      gap: gap,
+      rows: rows,
+      cols: cols
     };
     
     return gridDimensionsRef.current;
+  };
+
+  // Calculate optimal zoom to fit grid in 70% of viewport
+  const calculateAutoFitZoom = () => {
+    if (!projects || projects.length === 0) return currentZoom;
+    
+    const { rows, cols } = calculateOptimalGrid(projects.length);
+    const gap = calculateGapForZoom(currentZoom);
+    const gridWidth = cols * (config.itemSize + gap) - gap;
+    const gridHeight = rows * (config.itemSize + gap) - gap;
+    
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    
+    // Target 70% of viewport
+    const targetWidth = vw * 0.7;
+    const targetHeight = vh * 0.7;
+    
+    // Calculate zoom to fit
+    const zoomToFitWidth = targetWidth / gridWidth;
+    const zoomToFitHeight = targetHeight / gridHeight;
+    
+    // Use the smaller zoom to ensure both dimensions fit
+    return Math.min(zoomToFitWidth, zoomToFitHeight, 1.0); // Cap at 1.0 max zoom
   };
 
   // Calculate viewport bounds
@@ -206,8 +236,9 @@ function FashionGallery({ projects, category }) {
       draggableRef.current.kill();
     }
 
+    const { rows, cols } = calculateOptimalGrid(projects.length);
     const gap = calculateGapForZoom(currentZoom);
-    calculateGridDimensions(gap);
+    calculateGridDimensions(gap, rows, cols);
     const bounds = calculateBounds();
 
     draggableRef.current = Draggable.create(canvasWrapperRef.current, {
@@ -244,8 +275,9 @@ function FashionGallery({ projects, category }) {
 
   // Generate grid items from projects
   const generateGridItems = () => {
+    const { rows, cols } = calculateOptimalGrid(projects.length);
     const gap = calculateGapForZoom(currentZoom);
-    calculateGridDimensions(gap);
+    calculateGridDimensions(gap, rows, cols);
 
     if (!canvasWrapperRef.current || !gridContainerRef.current) return;
 
@@ -258,9 +290,15 @@ function FashionGallery({ projects, category }) {
     gridContainer.innerHTML = '';
     gridItemsRef.current = [];
 
-    let projectIndex = 0;
-    for (let row = 0; row < config.rows; row++) {
-      for (let col = 0; col < config.cols; col++) {
+    // Create items only for available projects (no cycling/duplicates)
+    let itemIndex = 0;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        // Stop if we've used all available projects
+        if (itemIndex >= projects.length) {
+          return;
+        }
+
         const item = document.createElement('div');
         item.className = 'grid-item';
 
@@ -273,7 +311,7 @@ function FashionGallery({ projects, category }) {
         item.style.height = `${config.itemSize}px`;
         item.style.opacity = '0';
 
-        const project = projects[projectIndex % projects.length];
+        const project = projects[itemIndex];
         if (project && project.featuredImage) {
           const img = document.createElement('img');
           img.src = project.featuredImage.url;
@@ -302,7 +340,7 @@ function FashionGallery({ projects, category }) {
           gridItemsRef.current.push(itemData);
         }
         
-        projectIndex++;
+        itemIndex++;
       }
     }
   };
@@ -366,6 +404,8 @@ function FashionGallery({ projects, category }) {
       });
     });
 
+    const { rows, cols } = calculateOptimalGrid(projects.length);
+    
     gsap.to(
       gridItemsRef.current.map(item => item.element),
       {
@@ -378,7 +418,7 @@ function FashionGallery({ projects, category }) {
         stagger: {
           amount: 1.5,
           from: "start",
-          grid: [config.rows, config.cols]
+          grid: [rows, cols]
         },
         onComplete: () => {
           gridItemsRef.current.forEach((itemData) => {
@@ -396,10 +436,14 @@ function FashionGallery({ projects, category }) {
     }
 
     gsap.set(viewportRef.current, { opacity: 0 });
-    gsap.set(canvasWrapperRef.current, { scale: currentZoom });
 
-    const gap = calculateGapForZoom(currentZoom);
-    calculateGridDimensions(gap);
+    // Calculate auto-fit zoom to ensure all projects are visible
+    const autoZoom = calculateAutoFitZoom();
+    gsap.set(canvasWrapperRef.current, { scale: autoZoom });
+
+    const { rows, cols } = calculateOptimalGrid(projects.length);
+    const gap = calculateGapForZoom(autoZoom);
+    calculateGridDimensions(gap, rows, cols);
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
