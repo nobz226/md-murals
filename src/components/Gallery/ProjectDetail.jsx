@@ -11,12 +11,6 @@ function ProjectDetail({ project, onClose }) {
   const projectWithImages = useQuery(api.projects.getProject, { id: project._id });
 
   useEffect(() => {
-    // Animate in
-    const splitContainer = splitContainerRef.current;
-    const closeButton = closeButtonRef.current;
-
-    splitContainer.classList.add('active');
-    
     // Initialize Fancybox
     if (projectWithImages?.images) {
       Fancybox.bind('[data-fancybox="gallery"]', {
@@ -44,7 +38,7 @@ function ProjectDetail({ project, onClose }) {
   return (
     <>
       <div 
-        className="split-screen-container" 
+        className="split-screen-container active" 
         ref={splitContainerRef}
       >
         <div className="split-left" onClick={handleOverlayClick}>

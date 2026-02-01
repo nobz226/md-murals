@@ -1,138 +1,178 @@
 # MD Murals - Copilot Instructions
 
 ## Project Overview
-Interactive GSAP-powered draggable image gallery showcasing fashion portraits. Features zoom-in/detail view with split-screen layout, custom animations, and audio feedback.
+Mihai Darvasa portfolio website showcasing mural and canvas artwork. React + Vite frontend with Convex backend, featuring GSAP-powered draggable gallery with zoom/detail view, category filtering (interior/exterior/canvas), and admin panel for content management.
 
 ## Architecture
 
-### Core Components
-- **FashionGallery** ([js/script.js](../js/script.js)): Main application class managing grid layout, drag interactions, zoom mode, and animations
-- **PreloaderManager** ([js/script.js](../js/script.js)): Canvas-based loading animation (2s duration, radial dot pattern)
-- Static grid: 8 rows × 12 columns of 320px images
+### Stack
+- **Frontend**: React 19 + Vite (port 3000)
+- **Backend**: Convex (realtime database + file storage)
+- **Animations**: GSAP 3.14 with Draggable, InertiaPlugin, CustomEase, Flip
+- **Routing**: React Router (/, /interior, /exterior, /canvas, /admin)
 
-### GSAP Plugin Stack
-All interactions use GSAP 3.13.0 with these plugins (registered in script.js):
-- `Draggable` - Grid panning with inertia
-- `InertiaPlugin` - Smooth throwProps physics
-- `CustomEase` - Two custom eases: `smooth (.87,0,.13,1)` and `center (.25,.46,.45,.94)`
-- `Flip` - Zoom transitions between grid and detail view
-
-## Key Patterns
-
-### Zoom Mode System
-Clicking a grid item triggers a multi-phase animation sequence:
-1. Disable dragging, set `body.zoom-mode` class
-2. Create `.scaling-image-overlay` div from source image
-3. Use `Flip.fit()` to animate overlay into `.zoom-target` (left half of split screen)
-4. Sequentially reveal title overlay: number → title → description lines (stagger 0.15s)
-5. Fade in close button from right edge (x: 40 → 0, delay 0.9s)
-
-**Exit**: Reverse Flip animation, clean up overlay, restore grid item opacity, re-enable dragging
-
-### Zoom Levels & Gap Calculation
-Zoom changes dynamically adjust spacing ([script.js#L482](../js/script.js#L482)):
-```javascript
-if (zoomLevel >= 1.0) return 16;      // Tight spacing
-else if (zoomLevel >= 0.6) return 32; // Normal spacing (default)
-else return 64;                        // Loose spacing
+### Data Model ([convex/schema.ts](../convex/schema.ts))
+```typescript
+projects: {
+  title, description, category, featuredImageId?, order, createdAt, updatedAt
+}
+images: {
+  projectId, storageId?, isFeatured, order, url
+}
 ```
+- `category`: "interior" | "exterior" | "canvas"
+- Images indexed by `projectId` for efficient queries
+- Projects indexed by `category` for filtered views
 
-Zoom controls: `0.3` (Out), `0.6` (Normal), `1.0` (In), `autoFitZoom` (Fit)
-Keyboard shortcuts: `1`, `2`, `3`, `f/F`
-
-### Animation Timing Conventions
-- **Entry animations**: Use `.customEase` for smooth deceleration
-- **Center/reset moves**: Use `.centerEase` for balanced easing
-- **Stagger patterns**: Grid intro uses `stagger: {from: "start", grid: [rows, cols]}`
-- **Overlay text**: Lines animate from y-offset with stagger, NOT SplitText
-
-### Sound System
-Toggle-based audio with 7 sound effects ([script.js#L201](../js/script.js#L201)):
-- `click`, `open`, `close`, `zoom-in`, `zoom-out`, `drag-start`, `drag-end`
-- Canvas-based sound wave visualization updates at RAF, interpolates between mute/active colors
-- Audio preloaded with `volume: 0.3`, only plays when `soundSystem.enabled === true`
+### Key Components
+- **FashionGallery** ([src/components/Gallery/FashionGallery.jsx](../src/components/Gallery/FashionGallery.jsx)): GSAP-powered 8×12 grid with drag, zoom, and Flip-based detail view
+- **ProjectDetail**: Split-screen overlay showing project info (rendered during zoom mode)
+- **Admin Pages** ([src/pages/Admin.jsx](../src/pages/Admin.jsx)): ProjectForm, ProjectList, ImageUploader for content management
+- **Preloader** ([src/components/Preloader.jsx](../src/components/Preloader.jsx)): Canvas-based 2s loading animation
 
 ## Development Workflow
 
-### Running the Project
-Open `index.html` directly in browser (no build step). Uses CDN resources:
-- GSAP plugins from jsdelivr.net
-- Fonts: PPNeueMontreal (woff2), TheGoodMonolith (cdnfonts)
-- Images: CodePen assets (orange-portrait_01.jpg through _14.jpg)
+### Running Locally
+```bash
+# Terminal 1: Convex backend
+npm run convex
 
-### Adding New Images
-1. Add URLs to `fashionImages` array ([script.js#L367](../js/script.js#L367))
-2. Add metadata to `imageData` array ([script.js#L378](../js/script.js#L378)) with `{number, title, description}`
-3. Images cycle via `imageIndex % fashionImages.length`
-
-### Modifying Grid Layout
-Update `config` object ([script.js#L159](../js/script.js#L159)):
-```javascript
-itemSize: 320,     // Item dimensions
-rows: 8,           // Grid rows
-cols: 12,          // Grid columns
-currentZoom: 0.6   // Initial zoom
+# Terminal 2: Vite dev server
+npm run dev  # → http://localhost:3000
 ```
-Grid regenerates via `generateGridItems()`, calculates bounds, reinitializes Draggable
+**Required**: `VITE_CONVEX_URL` environment variable (set by Convex CLI)
+
+### Database Seeding
+Use `convex/seed.ts` mutation to populate initial data:
+```javascript
+// In browser console or via Convex dashboard:
+await mutation(api.seed.seedData)
+```
+Creates 3 sample projects (one per category) with placeholder Unsplash images
+
+### Adding Projects
+1. Navigate to `/admin`
+2. Click "+ New Project", fill form (title, description, category)
+3. Upload images via ImageUploader component
+4. First uploaded image auto-set as featured; change via "Set as Featured" button
+5. Projects appear in grid immediately via Convex reactivity
+
+## Convex Patterns
+
+### Query Usage ([src/pages/Home.jsx](../src/pages/Home.jsx))
+```javascript
+const allProjects = useQuery(api.projects.getAllProjects);
+const filtered = useQuery(api.projects.getProjectsByCategory, 
+  category ? { category } : "skip");  // Conditional query
+```
+**Critical**: Use `"skip"` to disable queries, NOT `null` or `undefined`
+
+### Mutation Pattern ([src/components/Admin/ImageUploader.jsx](../src/components/Admin/ImageUploader.jsx))
+```javascript
+// 1. Generate upload URL
+const uploadUrl = await generateUploadUrl();
+
+// 2. Upload file to Convex storage
+const result = await fetch(uploadUrl, {
+  method: 'POST',
+  headers: { 'Content-Type': file.type },
+  body: file
+});
+
+// 3. Save image record with storageId
+const { storageId } = await result.json();
+await saveImage({ projectId, storageId, order });
+```
+Storage URLs auto-generated via `ctx.storage.getUrl(storageId)` in backend
+
+### Featured Image Handling
+- `projects.featuredImageId` is optional (can be null)
+- `getAllProjects` query auto-fetches first image if no featured set
+- Admin sets featured via `setFeaturedImage` mutation
+
+## GSAP Gallery Interactions
+
+### Grid System ([FashionGallery.jsx](../src/components/Gallery/FashionGallery.jsx))
+- 8 rows × 12 columns of 320px items
+- Gap dynamically calculated: `zoom >= 1.0 ? 16 : zoom >= 0.6 ? 32 : 64`
+- Projects cycle via `projectIndex % projects.length` to fill grid
+- Uses refs for GSAP: `viewportRef`, `canvasWrapperRef`, `gridContainerRef`, `draggableRef`
+
+### Draggable Configuration
+```javascript
+Draggable.create(canvasWrapper, {
+  type: "x,y",
+  bounds: calculateBounds(),  // Centers grid if smaller than viewport
+  inertia: true,
+  throwProps: { resistance: 300 },
+  onDragStart: () => document.body.classList.add("dragging")
+})
+```
+**Always** call `initDraggable()` after zoom changes to recalculate bounds
+
+### Zoom Mode Flow
+1. Click grid item → `enterZoomMode(itemData)`
+2. Set `zoomState.isActive`, disable draggable, add `body.zoom-mode` class
+3. Create `.scaling-image-overlay` from source image
+4. `Flip.fit()` animates overlay into `.zoom-target` (left half of split screen)
+5. Stagger-animate title overlay (number → title → description lines, 0.15s delay)
+6. Exit: Reverse Flip, cleanup overlay, restore draggable
+
+### Custom Eases (Registered in useEffect)
+```javascript
+customEaseRef.current = CustomEase.create("smooth", ".87,0,.13,1");
+centerEaseRef.current = CustomEase.create("center", ".25,.46,.45,.94");
+```
+Use `smooth` for entry animations, `center` for reset/centering moves
+
+## Routing & Category Filtering
+
+### Route Structure ([App.jsx](../src/App.jsx))
+```jsx
+<Route path="/" element={<Home />} />
+<Route path="/interior" element={<Home category="interior" />} />
+// category prop determines which query to use
+```
+Home component conditionally queries `getAllProjects` or `getProjectsByCategory`
+
+### Header Navigation
+Category links in Header component update route, triggering query change and grid regeneration
 
 ## Common Gotchas
 
-### Viewport Boundary Logic
-`calculateBounds()` ([script.js#L903](../js/script.js#L903)) returns centering coordinates when scaled grid < viewport:
-```javascript
-if (scaledWidth <= vw) {
-  minX = maxX = (vw - scaledWidth) / 2;  // Center horizontally
-}
-```
-Always update bounds after zoom changes via `initDraggable()`
+### Convex Query Skipping
+❌ `useQuery(api.foo, null)` or `useQuery(api.foo, undefined)`  
+✅ `useQuery(api.foo, condition ? { args } : "skip")`
 
-### Class-Based State Management
-- `body.dragging` - Active drag state (cursor: grabbing)
-- `body.zoom-mode` - Detail view active (cursor: default)
-- `splitScreenContainer.active` - Split screen visible
-- `grid-item.selected` - z-index elevation during zoom
-- `grid-item.out-of-view` - IntersectionObserver controlled opacity
+### GSAP State Management
+- Use refs (`draggableRef.current.kill()`) to cleanup before reinitializing
+- Store last valid position in `lastValidPositionRef` to prevent snap-back on boundary changes
+- Always call `calculateGridDimensions()` before `calculateBounds()`
 
-### Text Line Splitting
-Custom `splitTextIntoLines()` function ([script.js#L457](../js/script.js#L457)) wraps text into `.description-line` spans based on container width. Does NOT use SplitText plugin. Each line animates independently with y-offset transforms.
+### Image URL Generation
+- Convex storage URLs are async (`await ctx.storage.getUrl()`)
+- URLs stored in `images.url` field for frontend access
+- Delete images via `ctx.storage.delete(storageId)` before removing DB record
 
-## Styling Conventions
+### Grid Regeneration
+Triggered on:
+- Projects data changes (Convex reactivity)
+- Zoom level changes
+- Category route changes
 
-### CSS Custom Properties
-```css
---spacing-base: 1rem
---transition-medium: 0.3s ease
---color-text-dim: 0.6 (opacity multiplier)
-```
+Always clears `gridContainer.innerHTML` and rebuilds from scratch
 
-### Grid Layout
-Header/footer use 12-column CSS Grid with explicit column assignments:
-- `nav-section`: columns 1-3
-- `values-section`: columns 5-6
-- `location-section`: columns 7-8
-- `contact-section`: columns 9-10
-- `social-section`: columns 11-12
+## File Upload Flow
+1. User selects files in ImageUploader
+2. Call `generateUploadUrl` mutation → get upload URL
+3. POST file to upload URL with `Content-Type: image/*`
+4. Extract `storageId` from response
+5. Call `saveImage` mutation with `{ projectId, storageId, order }`
+6. Convex generates public URL and stores in `images.url`
 
-### Z-Index Hierarchy
-```
-10000: Header/footer
-9998: Page vignette
-100000: Preloader (removed after init)
-6: Controls
-5: Close button
-3: Scaling overlay (zoom transition)
-2: Split screen
-1: Viewport/grid items
-```
-
-## Integration Points
-- Images from CodePen CDN (replace with own hosting for production)
-- Google Fonts integration via `@import` in CSS
-- No backend/API - purely client-side
-- No framework dependencies beyond GSAP
-
-## Performance Notes
-- Uses `will-change: transform` on `.canvas-wrapper` and `.grid-item`
-- `IntersectionObserver` fades out-of-viewport items to opacity 0.1
-- Canvas animations use `requestAnimationFrame`
-- Draggable uses hardware-accelerated transforms (x/y)
+## Performance Considerations
+- Grid uses `opacity: 0` initialization, then GSAP stagger animation
+- `IntersectionObserver` fades out-of-view items to `opacity: 0.1`
+- `will-change: transform` on animated elements
+- Draggable uses hardware-accelerated `x/y` transforms
+- Convex queries auto-subscribe; components re-render on data changes

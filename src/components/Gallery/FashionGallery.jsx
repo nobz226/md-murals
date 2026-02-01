@@ -206,12 +206,17 @@ function FashionGallery({ projects, category }) {
 
   // Enter zoom mode
   const enterZoomMode = (itemData) => {
-    setZoomState(prev => ({
-      ...prev,
-      isActive: true,
-      selectedProject: itemData.project,
-      selectedItem: itemData
-    }));
+    console.log('enterZoomMode called', itemData);
+    setZoomState(prev => {
+      const newState = {
+        ...prev,
+        isActive: true,
+        selectedProject: itemData.project,
+        selectedItem: itemData
+      };
+      console.log('New zoom state:', newState);
+      return newState;
+    });
 
     if (draggableRef.current) draggableRef.current.disable();
     document.body.classList.add('zoom-mode');
