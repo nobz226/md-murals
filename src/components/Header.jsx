@@ -42,7 +42,7 @@ function Header({ currentCategory }) {
       </div>
       <div className="desktop-nav-location">
         <h3>+Studio</h3>
-        <li><Link to="/">About</Link></li>
+        <p><Link to="/">About</Link></p>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>

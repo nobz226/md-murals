@@ -74,6 +74,7 @@ function FashionGallery({ projects, category }) {
     flipAnimation: null,
     scalingOverlay: null
   });
+  const zoomStateRef = useRef(zoomState);
 
   const currentZoom = 0.6; // Fixed zoom level
   const gridItemsRef = useRef([]);
@@ -82,10 +83,25 @@ function FashionGallery({ projects, category }) {
   const customEaseRef = useRef(null);
   const centerEaseRef = useRef(null);
 
+  // Keep zoomStateRef in sync with zoomState
+  useEffect(() => {
+    zoomStateRef.current = zoomState;
+  }, [zoomState]);
+
   // Close zoom mode when category changes (navigation)
   useEffect(() => {
     if (zoomState.isActive) {
-      exitZoomMode();
+      // Force cleanup of zoom mode state
+      setZoomState({
+        isActive: false,
+        selectedProject: null,
+        selectedItem: null,
+        flipAnimation: null,
+        scalingOverlay: null
+      });
+      
+      if (draggableRef.current) draggableRef.current.enable();
+      document.body.classList.remove('zoom-mode');
     }
   }, [category]);
 
@@ -331,7 +347,7 @@ function FashionGallery({ projects, category }) {
 
           // Add click event
           item.addEventListener('click', () => {
-            if (!zoomState.isActive) {
+            if (!zoomStateRef.current.isActive) {
               enterZoomMode(itemData);
             }
           });
