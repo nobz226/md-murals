@@ -116,21 +116,27 @@ body.zoom-mode {
   background: rgba(255, 255, 255, 0.7);
 }
 
-.values-section {
+/* Desktop Navigation */
+.desktop-nav-values {
   grid-column: 5 / span 2;
 }
 
-.location-section {
+.desktop-nav-location {
   grid-column: 7 / span 2;
 }
 
-.contact-section {
+.desktop-nav-contact {
   grid-column: 9 / span 2;
 }
 
-.social-section {
+.desktop-nav-social {
   grid-column: 11 / span 2;
-  text-align: right;
+  text-align: left;
+}
+
+/* Mobile Menu - Hidden by default */
+.mobile-menu {
+  display: none;
 }
 
 /* Bottom bar */
@@ -826,16 +832,21 @@ h3 {
     display: flex;
   }
 
-  /* Hide menu sections by default on mobile */
-  .values-section,
-  .location-section,
-  .contact-section,
-  .social-section {
+  /* Hide desktop navigation on mobile */
+  .desktop-nav-values,
+  .desktop-nav-location,
+  .desktop-nav-contact,
+  .desktop-nav-social {
     display: none;
   }
 
-  /* Show menu when open */
-  .values-section.menu-open {
+  /* Mobile Menu Base Styles */
+  .mobile-menu {
+    display: none;
+  }
+
+  /* Show mobile menu when open */
+  .mobile-menu.mobile-menu-open {
     display: block;
     position: fixed;
     top: 0;
@@ -845,25 +856,74 @@ h3 {
     background: rgba(0, 0, 0, 0.98);
     z-index: 10000;
     padding: 5rem 2rem 2rem 2rem;
-    grid-column: 1 / -1;
+    overflow-y: auto;
   }
 
-  .values-section.menu-open h3 {
+  /* Mobile Menu Sections */
+  .mobile-menu-values,
+  .mobile-menu-location,
+  .mobile-menu-contact,
+  .mobile-menu-social {
+    margin-bottom: 3rem;
+  }
+
+  .mobile-menu-values h3,
+  .mobile-menu-location h3,
+  .mobile-menu-contact h3,
+  .mobile-menu-social h3 {
     font-size: 18px;
     margin-bottom: 2rem;
   }
 
-  .values-section.menu-open ul {
+  .mobile-menu-values ul,
+  .mobile-menu-social ul {
     list-style: none;
   }
 
-  .values-section.menu-open li {
+  .mobile-menu-values li,
+  .mobile-menu-location li,
+  .mobile-menu-social li {
     margin-bottom: 1.5rem;
   }
 
-  .values-section.menu-open a {
+  .mobile-menu-values a,
+  .mobile-menu-location a,
+  .mobile-menu-social a {
     font-size: 24px;
     font-weight: 600;
+  }
+
+  .mobile-menu-contact a {
+    font-size: 18px;
+  }
+
+  .mobile-menu-location p,
+  .mobile-menu-contact p {
+    font-size: 16px;
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-menu-social ul {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .mobile-menu-social a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    transition: opacity 0.3s ease;
+  }
+
+  .mobile-menu-social a:hover {
+    opacity: 0.7;
+  }
+
+  .mobile-menu-social svg {
+    width: 32px;
+    height: 32px;
   }
 
   .split-screen-container {

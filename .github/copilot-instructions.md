@@ -1,9 +1,11 @@
 # MD Murals - Copilot Instructions
 
 ## Project Overview
-Mihai Darvasa portfolio website showcasing mural and canvas artwork. React + Vite frontend with Convex backend, featuring GSAP-powered draggable gallery with zoom/detail view, category filtering (interior/exterior/canvas), and admin panel for content management.
+Mihai Darvasa portfolio website showcasing mural and canvas artwork. React 19 + Vite frontend with Convex backend, featuring GSAP-powered draggable gallery with zoom/detail view, category filtering (interior/exterior/canvas), and admin panel for content management.
 
 **Critical**: This is a highly interactive GSAP-based gallery. Most bugs relate to GSAP state management, Flip animations, or Convex query patterns. Always check refs cleanup and query skip patterns first.
+
+**Tech Stack**: React 19.2.4, GSAP 3.14.2, Convex 1.31.7, Fancybox 6.1.10, React Router 7.13.0, Vite 7.3.1
 
 ## Architecture
 
@@ -48,8 +50,12 @@ npm run convex  # Spawns dev server, watches schema changes
 # Terminal 2: Vite dev server
 npm run dev  # → http://localhost:3000
 ```
-**Environment**: `VITE_CONVEX_URL` auto-set by Convex CLI on first `npm run convex`
-**First-time setup**: Run `npm install` then `npm run convex` - it will prompt for Convex account/project setup
+**Environment**: No `.env` needed - `VITE_CONVEX_URL` auto-set by Convex CLI on first `npm run convex`  
+**First-time setup**: 
+1. `npm install` - Install all dependencies
+2. `npm run convex` - Initializes Convex (prompts for account/project if first time)
+3. Open new terminal → `npm run dev` - Start Vite dev server
+4. Navigate to `/admin` → Use SeedButton to populate database with sample data
 
 ### Build & Deployment
 ```bash
@@ -67,6 +73,7 @@ Two methods to seed database:
 - Use "Seed Database" button in fixed top-right panel
 - Creates 3 sample projects with Unsplash placeholder images
 - "Clear Data" button removes all projects/images and deletes storage files
+- **Dev-only component** - remove before production deployment
 
 **2. Convex Dashboard/Console**
 ```javascript
@@ -113,9 +120,12 @@ Storage URLs auto-generated via `ctx.storage.getUrl(storageId)` in backend
 
 ### Featured Image Handling
 - `projects.featuredImageId` is optional (can be null)
-- `getAllProjects` query auto-fetches first image if no featured set
+- **Both query functions** (`getAllProjects` and `getProjectsByCategory`) include featured image enrichment:
+  - First tries to fetch via `featuredImageId` if set
+  - Falls back to first image from `images` table if no featured set
+  - Returns `null` if project has no images
 - Admin sets featured via `setFeaturedImage` mutation
-- **Both query functions** (`getAllProjects` and `getProjectsByCategory`) include featured image enrichment logic
+- ImageUploader auto-sets first uploaded image as featured for new projects
 
 ## GSAP Gallery Interactions
 
@@ -184,9 +194,15 @@ Category links in Header component update route, triggering query change and gri
 - Position: Fixed bottom-center, moves to split-right during zoom mode
 
 **Implementation Notes**:
+- **Current behavior**: Fixed zoom at 0.6 (60%) - zoom controls UI exists but functionality is limited to auto-fit
 - `isZoomMode` prop disables controls to prevent conflicts with ProjectDetail
 - `onAutoFit` callback triggers `calculateGridDimensions()` + bounds recalculation
 - Canvas animation uses `requestAnimationFrame` with color interpolation for smooth transitions
+
+### Header Navigation ([Header.jsx](../src/components/Header.jsx))
+- Hamburger menu with category links, studio info, contact, and social links
+- Category links update route (/, /interior, /exterior, /canvas) triggering query change
+- Menu state managed with `useState` - `menuOpen` toggles `.menu-open` class for mobile responsiveness
 
 ## Common Gotchas
 
@@ -227,3 +243,77 @@ Always clears `gridContainer.innerHTML` and rebuilds from scratch
 - `will-change: transform` on animated elements
 - Draggable uses hardware-accelerated `x/y` transforms
 - Convex queries auto-subscribe; components re-render on data changes
+
+## Styling & CSS Patterns
+
+### Global Styles ([src/styles/main.css](../src/styles/main.css))
+- **Body states**: `.dragging` (cursor changes, disables pointer events during drag), `.zoom-mode` (hides controls, shows split screen)
+- **Grid items**: `.grid-item` (absolute positioned, hardware-accelerated transforms), `.grid-item.out-of-view` (reduced opacity)
+- **Split screen**: `.split-screen-container` (hidden by default), `.split-screen-container.active` (Flex layout with 50/50 split)
+- **Custom properties**: Uses CSS variables for colors, spacing, and breakpoints (defined in `:root`)
+
+### Responsive Design
+- **Mobile-first approach**: Base styles for mobile, media queries for larger screens
+- **Breakpoints**: 600px (tablet), 900px (small desktop), 1400px (large desktop)
+- **Grid recalculation**: `getResponsiveConfig()` in FashionGallery adjusts item size, gap, rows/cols based on viewport
+- **Header menu**: Hamburger toggles `.menu-open` class for mobile navigation overlay
+
+### Animation States
+- **GSAP-driven**: Most animations use GSAP instead of CSS transitions for precise control
+- **Flip animations**: Zoom mode uses GSAP Flip plugin for morphing between grid and detail view
+- **Preloader**: Canvas-based radial pulse animation ([Preloader.jsx](../src/components/Preloader.jsx)) shows once per session via `sessionStorage`
+
+## Admin Panel Workflow
+
+### Creating Projects ([Admin.jsx](../src/pages/Admin.jsx), [ProjectForm.jsx](../src/components/Admin/ProjectForm.jsx))
+1. Click "+ New Project" button in admin dashboard
+2. Fill form: title, description, category (interior/exterior/canvas)
+3. Submit creates project, keeps form open for image upload
+4. Use ImageUploader component to add images (multiple files supported)
+5. First uploaded image auto-set as featured; change via "Set as Featured" button
+6. Close form - projects appear in gallery immediately via Convex reactivity
+
+### Image Management ([ImageUploader.jsx](../src/components/Admin/ImageUploader.jsx))
+- **Upload flow**: 
+  1. `generateUploadUrl()` mutation → get signed upload URL
+  2. POST file to URL with `Content-Type: image/*`
+  3. Extract `storageId` from response
+  4. `saveImage()` mutation stores record with generated public URL
+- **Featured image**: Blue border indicates featured; click "Set Featured" on any image to change
+- **Grid display**: Shows all project images in responsive grid with aspect ratio preservation
+
+### Editing/Deleting
+- **Edit**: Click "Edit" in ProjectList → Opens ProjectForm with pre-filled data
+- **Delete**: Click "Delete" → Confirmation dialog → `deleteProject()` mutation removes project + all images + storage files
+- **Real-time updates**: All changes reflect immediately in both admin and public gallery via Convex subscriptions
+
+## Common Debugging Scenarios
+
+### Gallery Not Rendering
+1. **Check Convex connection**: Ensure `npm run convex` is running in separate terminal
+2. **Verify data**: Use Convex dashboard to check if projects exist in database
+3. **Query skip pattern**: If using category filter, ensure query isn't skipped with `null`/`undefined` - use `"skip"` string
+4. **Console errors**: Check for GSAP plugin registration errors (Draggable, Flip, InertiaPlugin)
+
+### Grid Layout Issues
+- **Responsive config**: Check `getResponsiveConfig()` breakpoint matching current viewport
+- **Refs not initialized**: Ensure `viewportRef`, `canvasWrapperRef`, `gridContainerRef` are set before GSAP calls
+- **Window resize**: Grid regenerates on resize - verify `handleResize` cleanup isn't causing flicker
+
+### Zoom Mode Problems
+- **Overlay not appearing**: Verify `scalingOverlayRef.current` is created before Flip animation
+- **Reverse animation fails**: Check that source image element still exists in DOM
+- **Fancybox conflicts**: Ensure `Fancybox.destroy()` is called in cleanup to prevent memory leaks
+- **Split screen not hiding**: Verify `body.zoom-mode` class is removed in `exitZoomMode()`
+
+### Convex Upload Failures
+1. **Storage URL generation**: Check `generateUploadUrl()` returns valid URL
+2. **Content-Type mismatch**: Ensure file MIME type matches upload header
+3. **Storage ID extraction**: Verify `storageId` exists in fetch response JSON
+4. **URL generation**: `ctx.storage.getUrl(storageId)` can return `null` - handle gracefully
+
+### Performance Degradation
+- **Too many grid items**: Check if `rows × cols` creates excessive DOM nodes
+- **Animation frame loops**: Verify `requestAnimationFrame` cleanup in useEffect returns
+- **Draggable not killed**: Always call `draggableRef.current.kill()` before reinitializing
+- **IntersectionObserver**: Check observer is disconnected on unmount
