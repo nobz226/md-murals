@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Preloader from '../components/Preloader';
 import FashionGallery from '../components/Gallery/FashionGallery';
+import SeedButton from '../components/SeedButton';
 
 function Home({ category }) {
   const [showPreloader, setShowPreloader] = useState(() => {
@@ -20,14 +21,6 @@ function Home({ category }) {
   );
   
   const projects = category ? filteredProjects : allProjects;
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Home - category:', category);
-    console.log('Home - allProjects:', allProjects);
-    console.log('Home - filteredProjects:', filteredProjects);
-    console.log('Home - projects (final):', projects);
-  }, [category, allProjects, filteredProjects, projects]);
 
   useEffect(() => {
     if (showPreloader) {
@@ -46,6 +39,7 @@ function Home({ category }) {
 
   return (
     <>
+      <SeedButton />
       <Header currentCategory={category} />
       <FashionGallery projects={projects || []} category={category} />
       <Footer />

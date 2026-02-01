@@ -288,11 +288,7 @@ function FashionGallery({ projects, category }) {
 
   // Initialize on mount and when projects change
   useEffect(() => {
-    console.log('FashionGallery - projects:', projects);
-    console.log('FashionGallery - category:', category);
-    
     if (!projects || projects.length === 0) {
-      console.log('FashionGallery - No projects, skipping initialization');
       return;
     }
 

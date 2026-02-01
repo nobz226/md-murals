@@ -1,17 +1,23 @@
 import { useEffect, useRef } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import gsap from 'gsap';
 import { Flip } from 'gsap/dist/Flip';
+import { Fancybox } from '@fancyapps/ui';
+import '@fancyapps/ui/dist/fancybox/fancybox.css';
 
 gsap.registerPlugin(Flip);
 
 function ProjectDetail({ project, selectedItem, onClose, customEase }) {
+  // Fetch all images for this project
+  const projectImages = useQuery(api.images.getProjectImages, { projectId: project._id });
   const splitContainerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const imageTitleOverlayRef = useRef(null);
   const scalingOverlayRef = useRef(null);
 
   useEffect(() => {
-    if (!selectedItem || !project) return;
+    if (!selectedItem || !project || !projectImages) return;
 
     // Create scaling overlay from source image
     const createScalingOverlay = (sourceImg) => {
@@ -105,13 +111,28 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
       { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out', delay: 0.9 }
     );
 
+    // Initialize Fancybox after animations
+    setTimeout(() => {
+      Fancybox.bind('[data-fancybox="gallery"]', {
+        infinite: true,
+        Toolbar: {
+          display: {
+            left: [],
+            middle: [],
+            right: ['close'],
+          },
+        },
+      });
+    }, 1200);
+
     // Cleanup
     return () => {
       if (scalingOverlayRef.current) {
         scalingOverlayRef.current.remove();
       }
+      Fancybox.destroy();
     };
-  }, [selectedItem, project, customEase]);
+  }, [selectedItem, project, customEase, projectImages]);
 
   const handleClose = () => {
     if (!selectedItem || !scalingOverlayRef.current) return;
@@ -205,7 +226,21 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
             {/* Image will be animated here via Flip */}
           </div>
         </div>
-        <div className="split-right" onClick={handleOverlayClick}></div>
+        <div className="split-right">
+          <div className="gallery-grid">
+            {projectImages && projectImages.map((image, index) => (
+              <a
+                key={image._id}
+                href={image.url}
+                data-fancybox="gallery"
+                data-caption={`${project.title} - Image ${index + 1}`}
+                className="gallery-item"
+              >
+                <img src={image.url} alt={`${project.title} ${index + 1}`} />
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="image-title-overlay" ref={imageTitleOverlayRef} style={{ opacity: 0 }}>
