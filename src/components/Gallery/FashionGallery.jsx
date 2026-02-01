@@ -158,6 +158,38 @@ function FashionGallery({ projects, category }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [zoomState.isActive]);
 
+  // Handle config changes from resize (regenerate grid without intro animation)
+  useEffect(() => {
+    if (!projects || projects.length === 0 || !gridContainerRef.current) return;
+    
+    // Only regenerate if we already have items (this is a resize, not initial load)
+    if (gridItemsRef.current.length > 0) {
+      const gap = calculateGapForZoom(currentZoom);
+      calculateGridDimensions(gap);
+      
+      generateGridItems();
+      
+      // Make items visible immediately (skip intro animation)
+      gsap.set(gridItemsRef.current.map(item => item.element), {
+        opacity: 1
+      });
+      
+      // Recalculate position and bounds
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
+      const centerX = (vw - scaledWidth) / 2;
+      const centerY = (vh - scaledHeight) / 2;
+      
+      gsap.set(canvasWrapperRef.current, { x: centerX, y: centerY });
+      lastValidPositionRef.current.x = centerX;
+      lastValidPositionRef.current.y = centerY;
+      
+      // Reinitialize draggable with new bounds
+      initDraggable();
+    }
+  }, [config]);
+
   // Calculate gap based on zoom level
   const calculateGapForZoom = (zoomLevel) => {
     if (zoomLevel >= 1.0) return 16;
@@ -186,8 +218,9 @@ function FashionGallery({ projects, category }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-    const marginX = config.currentGap * currentZoom;
-    const marginY = config.currentGap * currentZoom;
+    // Increase margin to allow viewing the full grid
+    const marginX = Math.max(config.currentGap * currentZoom, 100);
+    const marginY = Math.max(config.currentGap * currentZoom, 100);
     
     let minX, maxX, minY, maxY;
     
@@ -441,7 +474,7 @@ function FashionGallery({ projects, category }) {
         draggableRef.current.kill();
       }
     };
-  }, [projects, category, config]);
+  }, [projects, category]);
 
   return (
     <>

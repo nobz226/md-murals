@@ -88,6 +88,32 @@ body.zoom-mode {
 /* Grid column assignments */
 .nav-section {
   grid-column: 1 / span 3;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Hamburger Menu */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 10001;
+}
+
+.hamburger span {
+  width: 24px;
+  height: 2px;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.hamburger:hover span {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .values-section {
@@ -792,28 +818,52 @@ h3 {
 
   .nav-section {
     grid-column: 1 / span 6;
+    justify-content: space-between;
   }
 
-  .values-section {
-    grid-column: 1 / span 3;
+  /* Show hamburger menu on mobile */
+  .hamburger {
+    display: flex;
   }
 
-  .location-section {
-    grid-column: 4 / span 3;
-  }
-
-  .contact-section {
-    grid-column: 1 / span 3;
-  }
-
+  /* Hide menu sections by default on mobile */
+  .values-section,
+  .location-section,
+  .contact-section,
   .social-section {
-    grid-column: 4 / span 3;
-    text-align: left;
+    display: none;
   }
 
-  .info-section {
-    grid-column: 1 / span 6;
-    text-align: left;
+  /* Show menu when open */
+  .values-section.menu-open {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.98);
+    z-index: 10000;
+    padding: 5rem 2rem 2rem 2rem;
+    grid-column: 1 / -1;
+  }
+
+  .values-section.menu-open h3 {
+    font-size: 18px;
+    margin-bottom: 2rem;
+  }
+
+  .values-section.menu-open ul {
+    list-style: none;
+  }
+
+  .values-section.menu-open li {
+    margin-bottom: 1.5rem;
+  }
+
+  .values-section.menu-open a {
+    font-size: 24px;
+    font-weight: 600;
   }
 
   .split-screen-container {
