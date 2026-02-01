@@ -22,6 +22,7 @@ function Header({ currentCategory }) {
       </div>
       <div className="location-section">
         <h3>+Studio</h3>
+          <li><Link to="/">About</Link></li>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>
