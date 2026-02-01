@@ -3,6 +3,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import ProjectForm from '../components/Admin/ProjectForm';
 import ProjectList from '../components/Admin/ProjectList';
+import SeedButton from '../components/SeedButton';
 
 function Admin() {
   const [showForm, setShowForm] = useState(false);
@@ -34,6 +35,7 @@ function Admin() {
       minHeight: '100vh',
       background: '#000'
     }}>
+      <SeedButton />
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ 
           display: 'flex', 

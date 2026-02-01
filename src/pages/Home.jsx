@@ -5,7 +5,6 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Preloader from '../components/Preloader';
 import FashionGallery from '../components/Gallery/FashionGallery';
-import SeedButton from '../components/SeedButton';
 
 function Home({ category }) {
   const [showPreloader, setShowPreloader] = useState(() => {
@@ -39,7 +38,6 @@ function Home({ category }) {
 
   return (
     <>
-      <SeedButton />
       <Header currentCategory={category} />
       <FashionGallery projects={projects || []} category={category} />
       <Footer />
