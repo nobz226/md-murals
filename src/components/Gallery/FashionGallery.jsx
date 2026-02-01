@@ -79,6 +79,25 @@ function FashionGallery({ projects, category }) {
   const customEaseRef = useRef(null);
   const centerEaseRef = useRef(null);
 
+  // Close zoom mode when category changes (navigation)
+  useEffect(() => {
+    if (zoomState.isActive) {
+      exitZoomMode();
+    }
+  }, [category]);
+
+  // Close zoom mode with Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && zoomState.isActive) {
+        exitZoomMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomState.isActive]);
+
   // Initialize custom eases
   useEffect(() => {
     customEaseRef.current = CustomEase.create("smooth", ".87,0,.13,1");

@@ -63,7 +63,7 @@ body.zoom-mode {
   left: 0;
   width: 100vw;
   padding: 1.5rem;
-  z-index: 10000;
+  z-index: 100000;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   -moz-column-gap: var(--spacing-base);
@@ -353,6 +353,8 @@ h3 {
   width: 50vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -365,6 +367,8 @@ h3 {
   width: 50vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -414,6 +418,7 @@ h3 {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* Image title overlay - positioned at bottom left */
@@ -724,6 +729,18 @@ h3 {
   pointer-events: none;
   will-change: transform;
   opacity: 1 !important;
+  display: grid;
+}
+
+.scaling-image-overlay::before,
+.scaling-image-overlay img {
+  grid-area: 1 / 1;
+}
+
+.scaling-image-overlay::before {
+  content: '';
+  backdrop-filter: blur(8px) brightness(0.8) contrast(0.7);
+  -webkit-backdrop-filter: blur(8px) brightness(0.8) contrast(0.7);
 }
 
 .scaling-image-overlay img {
@@ -731,6 +748,15 @@ h3 {
   height: 100%;
   object-fit: cover;
   display: block;
+  z-index: 1;
+  mask: linear-gradient(to bottom, 
+    red 0%, 
+    red 60%, 
+    transparent 100%);
+  -webkit-mask: linear-gradient(to bottom, 
+    red 0%, 
+    red 60%, 
+    transparent 100%);
 }
 
 /* Page vignette effect */
@@ -936,21 +962,37 @@ h3 {
     height: 50vh;
   }
 
+  .split-left {
+    position: relative;
+  }
+
   .gallery-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
   .image-title-overlay {
-    bottom: 10px;
-    left: 10px;
+    position: absolute;
+    top: auto;
+    bottom: 30px;
+    left: 20px;
+    right: 20px;
+    width: auto;
+    transform: translateY(-50vh);
   }
 
   .image-slide-number {
-    width: 250px;
+    width: 100%;
+    height: auto;
+  }
+
+  .image-slide-number span {
+    font-size: 10px;
   }
 
   .image-slide-title {
-    width: 250px;
+    width: 100%;
+    height: auto;
+    min-height: 60px;
   }
 
   .image-slide-title h1 {
@@ -958,7 +1000,12 @@ h3 {
   }
 
   .image-slide-description {
-    width: 250px;
+    width: 100%;
+    min-height: auto;
+  }
+
+  .description-line {
+    font-size: 14px;
   }
 
   .close-button {

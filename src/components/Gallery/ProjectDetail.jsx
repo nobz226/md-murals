@@ -23,6 +23,9 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
     const createScalingOverlay = (sourceImg) => {
       const overlay = document.createElement('div');
       overlay.className = 'scaling-image-overlay';
+      overlay.style.backgroundImage = `url(${sourceImg.src})`;
+      overlay.style.backgroundSize = 'cover';
+      overlay.style.backgroundPosition = '50% 50%';
       const img = document.createElement('img');
       img.src = sourceImg.src;
       img.alt = sourceImg.alt;
