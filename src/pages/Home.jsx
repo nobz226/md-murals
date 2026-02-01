@@ -7,7 +7,10 @@ import Preloader from '../components/Preloader';
 import FashionGallery from '../components/Gallery/FashionGallery';
 
 function Home({ category }) {
-  const [showPreloader, setShowPreloader] = useState(true);
+  const [showPreloader, setShowPreloader] = useState(() => {
+    // Only show preloader on first visit
+    return !sessionStorage.getItem('hasVisited');
+  });
   
   // Query projects based on category
   const allProjects = useQuery(api.projects.getAllProjects);
@@ -18,13 +21,24 @@ function Home({ category }) {
   
   const projects = category ? filteredProjects : allProjects;
 
+  // Debug logging
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowPreloader(false);
-    }, 2800); // 2s animation + 0.8s fade
+    console.log('Home - category:', category);
+    console.log('Home - allProjects:', allProjects);
+    console.log('Home - filteredProjects:', filteredProjects);
+    console.log('Home - projects (final):', projects);
+  }, [category, allProjects, filteredProjects, projects]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => {
+    if (showPreloader) {
+      sessionStorage.setItem('hasVisited', 'true');
+      const timer = setTimeout(() => {
+        setShowPreloader(false);
+      }, 2800); // 2s animation + 0.8s fade
+
+      return () => clearTimeout(timer);
+    }
+  }, [showPreloader]);
 
   if (showPreloader) {
     return <Preloader />;

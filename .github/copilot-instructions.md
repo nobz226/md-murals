@@ -113,10 +113,12 @@ Draggable.create(canvasWrapper, {
 ### Zoom Mode Flow
 1. Click grid item → `enterZoomMode(itemData)`
 2. Set `zoomState.isActive`, disable draggable, add `body.zoom-mode` class
-3. Create `.scaling-image-overlay` from source image
-4. `Flip.fit()` animates overlay into `.zoom-target` (left half of split screen)
-5. Stagger-animate title overlay (number → title → description lines, 0.15s delay)
-6. Exit: Reverse Flip, cleanup overlay, restore draggable
+3. ProjectDetail component creates `.scaling-image-overlay` from source image
+4. `Flip.fit()` animates overlay from grid position into `.zoom-target` (left 50vw of split screen)
+5. Stagger-animate title overlay (category → title → description, 0.15s delays)
+6. Exit via close button or clicking split areas: Reverse Flip back to grid, cleanup overlay, restore draggable
+
+**Critical**: Overlay must be created in DOM before Flip, then removed after reverse animation completes
 
 ### Custom Eases (Registered in useEffect)
 ```javascript

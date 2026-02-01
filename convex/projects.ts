@@ -36,16 +36,28 @@ export const getAllProjects = query({
 export const getProjectsByCategory = query({
   args: { category: v.union(v.literal("interior"), v.literal("exterior"), v.literal("canvas")) },
   handler: async (ctx, args) => {
+    console.log('getProjectsByCategory called with category:', args.category);
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_category", (q) => q.eq("category", args.category))
       .collect();
     
+    console.log('Found projects:', projects.length);
+    
     const projectsWithImages = await Promise.all(
       projects.map(async (project) => {
-        const featuredImage = project.featuredImageId
+        let featuredImage = project.featuredImageId
           ? await ctx.db.get(project.featuredImageId)
           : null;
+        
+        // If no featured image set, get the first image for this project
+        if (!featuredImage) {
+          const images = await ctx.db
+            .query("images")
+            .withIndex("by_project", (q) => q.eq("projectId", project._id))
+            .first();
+          featuredImage = images || null;
+        }
         
         return {
           ...project,

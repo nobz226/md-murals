@@ -288,7 +288,13 @@ function FashionGallery({ projects, category }) {
 
   // Initialize on mount and when projects change
   useEffect(() => {
-    if (!projects || projects.length === 0) return;
+    console.log('FashionGallery - projects:', projects);
+    console.log('FashionGallery - category:', category);
+    
+    if (!projects || projects.length === 0) {
+      console.log('FashionGallery - No projects, skipping initialization');
+      return;
+    }
 
     gsap.set(viewportRef.current, { opacity: 0 });
     gsap.set(canvasWrapperRef.current, { scale: currentZoom });
@@ -344,9 +350,11 @@ function FashionGallery({ projects, category }) {
         isZoomMode={zoomState.isActive}
       />
 
-      {zoomState.isActive && zoomState.selectedProject && (
+      {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
         <ProjectDetail
           project={zoomState.selectedProject}
+          selectedItem={zoomState.selectedItem}
+          customEase={customEaseRef.current}
           onClose={exitZoomMode}
         />
       )}
