@@ -16,14 +16,54 @@ function FashionGallery({ projects, category }) {
   const gridContainerRef = useRef(null);
   const draggableRef = useRef(null);
   
-  const [config] = useState({
-    itemSize: 320,
-    baseGap: 16,
-    rows: 8,
-    cols: 12,
-    currentZoom: 0.6,
-    currentGap: 32
-  });
+  // Get responsive grid configuration based on viewport
+  const getResponsiveConfig = () => {
+    const vw = window.innerWidth;
+    
+    if (vw <= 600) {
+      // Mobile
+      return {
+        itemSize: 200,
+        baseGap: 16,
+        rows: 6,
+        cols: 4,
+        currentZoom: 0.6,
+        currentGap: 32
+      };
+    } else if (vw <= 900) {
+      // Tablet
+      return {
+        itemSize: 250,
+        baseGap: 16,
+        rows: 7,
+        cols: 8,
+        currentZoom: 0.6,
+        currentGap: 32
+      };
+    } else if (vw <= 1400) {
+      // Small desktop
+      return {
+        itemSize: 280,
+        baseGap: 16,
+        rows: 8,
+        cols: 10,
+        currentZoom: 0.6,
+        currentGap: 32
+      };
+    } else {
+      // Large desktop
+      return {
+        itemSize: 320,
+        baseGap: 16,
+        rows: 8,
+        cols: 12,
+        currentZoom: 0.6,
+        currentGap: 32
+      };
+    }
+  };
+  
+  const [config, setConfig] = useState(getResponsiveConfig());
 
   const [zoomState, setZoomState] = useState({
     isActive: false,
@@ -40,11 +80,83 @@ function FashionGallery({ projects, category }) {
   const customEaseRef = useRef(null);
   const centerEaseRef = useRef(null);
 
+  // Handle zoom changes
+  const handleZoomChange = (newZoom) => {
+    if (zoomState.isActive) return;
+    
+    const gap = calculateGapForZoom(newZoom);
+    config.currentGap = gap;
+    config.currentZoom = newZoom;
+    calculateGridDimensions(gap);
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
+
+    // Animate zoom
+    gsap.to(canvasWrapperRef.current, {
+      scale: newZoom,
+      duration: 1.2,
+      ease: customEaseRef.current || 'power2.inOut',
+      onUpdate: () => {
+        const bounds = calculateBounds();
+        if (draggableRef.current) {
+          draggableRef.current.applyBounds(bounds);
+        }
+      },
+      onComplete: () => {
+        initDraggable();
+        
+        // Center if grid is smaller than viewport
+        const bounds = calculateBounds();
+        if (scaledWidth <= vw || scaledHeight <= vh) {
+          gsap.to(canvasWrapperRef.current, {
+            x: bounds.minX,
+            y: bounds.minY,
+            duration: 0.8,
+            ease: centerEaseRef.current || 'power2.inOut'
+          });
+        }
+      }
+    });
+
+    setCurrentZoom(newZoom);
+  };
+
+  // Auto-fit zoom calculation
+  const handleAutoFit = () => {
+    if (zoomState.isActive) return;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 64;
+
+    calculateGridDimensions(config.currentGap);
+    const { width, height } = gridDimensionsRef.current;
+
+    const scaleX = (vw - margin * 2) / width;
+    const scaleY = (vh - margin * 2) / height;
+    const fitZoom = Math.min(scaleX, scaleY, 1.0);
+
+    handleZoomChange(fitZoom);
+  };
+
   // Initialize custom eases
   useEffect(() => {
     customEaseRef.current = CustomEase.create("smooth", ".87,0,.13,1");
     centerEaseRef.current = CustomEase.create("center", ".25,.46,.45,.94");
-  }, []);
+    
+    // Handle window resize
+    const handleResize = () => {
+      if (zoomState.isActive) return;
+      
+      const newConfig = getResponsiveConfig();
+      setConfig(newConfig);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [zoomState.isActive]);
 
   // Calculate gap based on zoom level
   const calculateGapForZoom = (zoomLevel) => {
@@ -143,7 +255,6 @@ function FashionGallery({ projects, category }) {
   // Generate grid items from projects
   const generateGridItems = () => {
     const gap = calculateGapForZoom(currentZoom);
-    config.currentGap = gap;
     calculateGridDimensions(gap);
 
     if (!canvasWrapperRef.current || !gridContainerRef.current) return;
@@ -168,6 +279,8 @@ function FashionGallery({ projects, category }) {
 
         item.style.left = `${x}px`;
         item.style.top = `${y}px`;
+        item.style.width = `${config.itemSize}px`;
+        item.style.height = `${config.itemSize}px`;
         item.style.opacity = '0';
 
         const project = projects[projectIndex % projects.length];
@@ -328,7 +441,7 @@ function FashionGallery({ projects, category }) {
         draggableRef.current.kill();
       }
     };
-  }, [projects, category]);
+  }, [projects, category, config]);
 
   return (
     <>
@@ -342,8 +455,9 @@ function FashionGallery({ projects, category }) {
 
       <Controls 
         currentZoom={currentZoom}
-        setCurrentZoom={setCurrentZoom}
+        setCurrentZoom={handleZoomChange}
         isZoomMode={zoomState.isActive}
+        onAutoFit={handleAutoFit}
       />
 
       {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
