@@ -1,8 +1,39 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
 
 function Header({ currentCategory }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const logoRef = useRef(null);
+  const navValuesRef = useRef(null);
+  const navLocationRef = useRef(null);
+  const navContactRef = useRef(null);
+  const navSocialRef = useRef(null);
+
+  useEffect(() => {
+    // Fade in animations for header elements
+    gsap.set([logoRef.current, navValuesRef.current, navLocationRef.current, navContactRef.current, navSocialRef.current], {
+      opacity: 0,
+      y: -20
+    });
+
+    gsap.to(logoRef.current, {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      ease: 'power2.out',
+      delay: 0.2
+    });
+
+    gsap.to([navValuesRef.current, navLocationRef.current, navContactRef.current, navSocialRef.current], {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      ease: 'power2.out',
+      stagger: 0.1,
+      delay: 0.4
+    });
+  }, []);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -15,7 +46,7 @@ function Header({ currentCategory }) {
   return (
     <div className="header">
       {/* Logo and Hamburger */}
-      <div className="nav-section">
+      <div className="nav-section" ref={logoRef}>
         <Link to="/" className="logo-container" onClick={closeMenu}>
           <div className="logo-circles">
             <div className="circle circle-1"></div>
@@ -31,7 +62,7 @@ function Header({ currentCategory }) {
       </div>
 
       {/* Desktop Navigation */}
-      <div className="desktop-nav-values">
+      <div className="desktop-nav-values" ref={navValuesRef}>
         <h3>+Menu</h3>
         <ul>
           <li><Link to="/">All Work</Link></li>
@@ -40,17 +71,17 @@ function Header({ currentCategory }) {
           <li><Link to="/canvas">Canvas</Link></li>
         </ul>
       </div>
-      <div className="desktop-nav-location">
+      <div className="desktop-nav-location" ref={navLocationRef}>
         <h3>+Studio</h3>
         <p><Link to="/">About</Link></p>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>
-      <div className="desktop-nav-contact">
+      <div className="desktop-nav-contact" ref={navContactRef}>
         <h3>+Connect</h3>
         <p><a href="mailto:info@mihaidarvasa.com">info@mihaidarvasa.com</a></p>
       </div>
-      <div className="desktop-nav-social">
+      <div className="desktop-nav-social" ref={navSocialRef}>
         <h3>+Follow</h3>
         <ul>
           <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Instagram</a></li>
