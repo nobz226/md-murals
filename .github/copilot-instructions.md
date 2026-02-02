@@ -1,7 +1,7 @@
 # MD Murals - Copilot Instructions
 
 ## Project Overview
-Mihai Darvasa portfolio website showcasing mural and canvas artwork. React 19 + Vite frontend with Convex backend, featuring GSAP-powered draggable gallery with zoom/detail view, category filtering (interior/exterior/canvas), and admin panel for content management.
+Mihai Darvasa portfolio website showcasing mural and canvas artwork. React 19 + Vite frontend with Convex backend, featuring GSAP-powered draggable gallery with zoom/detail view, category filtering (interior/exterior/canvas), About page, and admin panel for content management.
 
 **Critical**: This is a highly interactive GSAP-based gallery. Most bugs relate to GSAP state management, Flip animations, or Convex query patterns. Always check refs cleanup and query skip patterns first.
 
@@ -14,7 +14,7 @@ Mihai Darvasa portfolio website showcasing mural and canvas artwork. React 19 + 
 - **Backend**: Convex (realtime database + file storage)
 - **Animations**: GSAP 3.14 with Draggable, InertiaPlugin, CustomEase, Flip
 - **Lightbox**: Fancybox (@fancyapps/ui ^6.1.10)
-- **Routing**: React Router (/, /interior, /exterior, /canvas, /admin)
+- **Routing**: React Router (/, /interior, /exterior, /canvas, /about, /admin)
 - **No build tools**: No TypeScript, no test suite, no linting - keep it simple
 
 ### Data Model ([convex/schema.ts](../convex/schema.ts))
@@ -25,18 +25,24 @@ projects: {
 images: {
   projectId, storageId?, isFeatured, order, url
 }
+about: {
+  title?, bio?, bioText?, storageId?, imageStorageId?, url?, imageUrl?, updatedAt?
+}
 ```
 - `category`: "interior" | "exterior" | "canvas"
 - Images indexed by `projectId` for efficient queries
 - Projects indexed by `category` for filtered views
+- About table uses optional fields for backwards compatibility (supports both old and new field names)
 
 ### Key Components
 - **FashionGallery** ([src/components/Gallery/FashionGallery.jsx](../src/components/Gallery/FashionGallery.jsx)): GSAP-powered responsive grid with drag, zoom, and Flip-based detail view
 - **ProjectDetail** ([src/components/Gallery/ProjectDetail.jsx](../src/components/Gallery/ProjectDetail.jsx)): Split-screen overlay with Fancybox lightbox for image gallery
-- **Header** ([src/components/Header.jsx](../src/components/Header.jsx)): Hamburger menu with category navigation, location, contact, and social links
+- **About** ([src/pages/About.jsx](../src/pages/About.jsx)): Split-screen page with artist image on left, bio text on right, uses same GSAP Flip animations as ProjectDetail
+- **Header** ([src/components/Header.jsx](../src/components/Header.jsx)): Hamburger menu with category navigation, About link, location, contact, and social links
 - **Controls** ([src/components/Controls.jsx](../src/components/Controls.jsx)): Zoom slider (25%-100%), auto-fit button, sound toggle with canvas wave animation
 - **Footer** ([src/components/Footer.jsx](../src/components/Footer.jsx)): Simple footer with artist info and coordinates
-- **Admin Pages** ([src/pages/Admin.jsx](../src/pages/Admin.jsx)): ProjectForm, ProjectList, ImageUploader for content management
+- **Admin Pages** ([src/pages/Admin.jsx](../src/pages/Admin.jsx)): ProjectForm, ProjectList, ImageUploader, AboutForm for content management
+- **AboutForm** ([src/components/Admin/AboutForm.jsx](../src/components/Admin/AboutForm.jsx)): Admin interface for editing artist name, bio, and featured image
 - **SeedButton** ([src/components/SeedButton.jsx](../src/components/SeedButton.jsx)): Dev-only tool in admin for seeding/clearing database
 - **Preloader** ([src/components/Preloader.jsx](../src/components/Preloader.jsx)): Canvas-based 2s loading animation (shows once per session)
 
@@ -71,17 +77,31 @@ Two methods to seed database:
 **1. SeedButton Component (Recommended)**
 - Navigate to `/admin`
 - Use "Seed Database" button in fixed top-right panel
-- Creates 3 sample projects with Unsplash placeholder images
+- Creates 39 sample projects (13 interior, 13 exterior, 13 canvas) with 4 unique Unsplash images each
 - "Clear Data" button removes all projects/images and deletes storage files
 - **Dev-only component** - remove before production deployment
 
 **2. Convex Dashboard/Console**
 ```javascript
-await mutation(api.seed.seedData)  // Seed
+await mutation(api.seed.seedData)  // Seed 39 projects
 await mutation(api.seed.clearData) // Clear all
 ```
 
-**Seed creates**: 3 projects (interior/exterior/canvas) with 3 images each, using placeholder Unsplash URLs
+### Project Structure
+```
+src/
+├── components/
+│   ├── Gallery/           # FashionGallery, ProjectDetail (GSAP animations)
+│   └── Admin/             # ProjectForm, ImageUploader, AboutForm
+├── pages/                 # Home, About, Admin (route components)
+└── styles/main.css        # Global styles, no CSS modules
+
+convex/
+├── schema.ts              # Database schema (projects, images, about)
+├── projects.ts            # CRUD for projects (query + mutation exports)
+├── images.ts              # Image upload/management
+└── about.ts               # Artist bio/profile data
+```
 
 ### Adding Projects
 1. Navigate to `/admin`
@@ -89,6 +109,14 @@ await mutation(api.seed.clearData) // Clear all
 3. Upload images via ImageUploader component
 4. First uploaded image auto-set as featured; change via "Set as Featured" button
 5. Projects appear in grid immediately via Convex reactivity
+
+### Managing About Page
+1. Navigate to `/admin`
+2. Use "About Section" form to edit:
+   - Artist name/title
+   - Bio text
+   - Featured image
+3. Changes appear immediately on `/about` page via Convex reactivity
 
 ## Convex Patterns
 
@@ -99,6 +127,23 @@ const filtered = useQuery(api.projects.getProjectsByCategory,
   category ? { category } : "skip");  // Conditional query
 ```
 **Critical**: Use `"skip"` to disable queries, NOT `null` or `undefined`
+
+### Backend Function Structure ([convex/projects.ts](../convex/projects.ts))
+All Convex functions follow this pattern:
+```typescript
+export const functionName = query({  // or mutation
+  args: {
+    param: v.string(),  // Convex validators (v.string, v.number, v.id(), etc.)
+    optional: v.optional(v.boolean())
+  },
+  handler: async (ctx, args) => {
+    // Database operations: ctx.db.query(), ctx.db.get(), ctx.db.insert()
+    // Storage operations: ctx.storage.getUrl(), ctx.storage.delete()
+    return result;
+  }
+});
+```
+**Validators available**: `v.string()`, `v.number()`, `v.boolean()`, `v.id("tableName")`, `v.optional()`, `v.union()`, `v.array()`, `v.literal()`
 
 ### Mutation Pattern ([src/components/Admin/ImageUploader.jsx](../src/components/Admin/ImageUploader.jsx))
 ```javascript
@@ -135,29 +180,25 @@ Storage URLs auto-generated via `ctx.storage.getUrl(storageId)` in backend
   - Formula: `cols = Math.ceil(Math.sqrt(numProjects * 1.5))`, `rows = Math.ceil(numProjects / cols)`
   - Creates slightly wider than tall grid for better visual balance
   - Each project appears exactly once (no cycling or duplicates)
-- **Responsive item sizes** (auto-recalculates on window resize):
-  - Mobile (≤600px): 200px items
-  - Tablet (≤900px): 250px items
-  - Small Desktop (≤1400px): 280px items
-  - Large Desktop (>1400px): 320px items
-- **Auto-fit zoom**: Scales grid to fit 70% of viewport on initial load
-  - Calculated via `calculateAutoFitZoom()` - uses smaller of width/height fit ratio
-  - Ensures all projects visible without dragging
-  - Capped at 1.0 max zoom
+- **Fixed item size**: 320px × 320px across all viewports (matches reference implementation)
+- **Fixed zoom level**: 0.6 (60%) - provides optimal viewing experience
+- **Top-left positioning**: Grid starts at 100px left margin, 200px top margin
 - Gap dynamically calculated: `zoom >= 1.0 ? 16 : zoom >= 0.6 ? 32 : 64`
 - Uses refs for GSAP: `viewportRef`, `canvasWrapperRef`, `gridContainerRef`, `draggableRef`
+- **zoomStateRef pattern**: Uses `useRef(zoomState)` synced via useEffect to avoid stale closures in click handlers
 
 ### Draggable Configuration
 ```javascript
 Draggable.create(canvasWrapper, {
   type: "x,y",
-  bounds: calculateBounds(),  // Centers grid if smaller than viewport
+  bounds: calculateBounds(),  // Forces top-left positioning when grid smaller than viewport
   inertia: true,
   throwProps: { resistance: 300 },
   onDragStart: () => document.body.classList.add("dragging")
 })
 ```
 **Always** call `initDraggable()` after zoom changes to recalculate bounds
+**Bounds calculation**: Uses marginX (100px) and marginY (200px) to maintain top-left positioning
 
 ### Zoom Mode Flow
 1. Click grid item → `enterZoomMode(itemData)`
@@ -186,12 +227,14 @@ Use `smooth` for entry animations, `center` for reset/centering moves
 ```jsx
 <Route path="/" element={<Home />} />
 <Route path="/interior" element={<Home category="interior" />} />
+<Route path="/about" element={<About />} />
 // category prop determines which query to use
 ```
 Home component conditionally queries `getAllProjects` or `getProjectsByCategory`
 
 ### Header Navigation
-Category links in Header component update route, triggering query change and grid regeneration
+- Category links in Header component update route, triggering query change and grid regeneration
+- About link navigates to `/about` route, showing split-screen About page
 
 ## UI Controls
 
@@ -264,6 +307,8 @@ Always clears `gridContainer.innerHTML` and rebuilds from scratch with exact num
 - **Breakpoints**: 600px (tablet), 900px (small desktop), 1400px (large desktop)
 - **Grid recalculation**: `getResponsiveConfig()` in FashionGallery adjusts item size, gap, rows/cols based on viewport
 - **Header menu**: Hamburger toggles `.menu-open` class for mobile navigation overlay
+- **Mobile split-screen**: Gallery grid has additional top margin (2rem) and padding (3rem) on mobile devices
+- **Mobile image scaling**: `.scaling-image-overlay` constrained to max-height 50vh with object-fit: contain to ensure all featured images fit properly
 
 ### Animation States
 - **GSAP-driven**: Most animations use GSAP instead of CSS transitions for precise control
@@ -289,12 +334,25 @@ Always clears `gridContainer.innerHTML` and rebuilds from scratch with exact num
 - **Featured image**: Blue border indicates featured; click "Set Featured" on any image to change
 - **Grid display**: Shows all project images in responsive grid with aspect ratio preservation
 
+### About Management ([AboutForm.jsx](../src/components/Admin/AboutForm.jsx))
+- **Edit About content**: Artist name/title, bio text, and featured image
+- **Image upload**: Same flow as project images (generateUploadUrl → POST → updateAbout)
+- **Preview**: Shows current featured image with update capability
+- **Backwards compatibility**: Handles both old field names (bioText, imageStorageId) and new ones (bio, storageId)
+
 ### Editing/Deleting
 - **Edit**: Click "Edit" in ProjectList → Opens ProjectForm with pre-filled data
 - **Delete**: Click "Delete" → Confirmation dialog → `deleteProject()` mutation removes project + all images + storage files
 - **Real-time updates**: All changes reflect immediately in both admin and public gallery via Convex subscriptions
 
 ## Common Debugging Scenarios
+
+### Quick Diagnosis Checklist
+1. **Gallery issues**: Check GSAP refs cleanup, `calculateBounds()` called after grid changes
+2. **Data not loading**: Verify `npm run convex` is running, check query skip pattern (`"skip"` not `null`)
+3. **Upload failures**: Confirm `Content-Type` matches file MIME type, verify `storageId` in response
+4. **Animation glitches**: Ensure `Flip.fit()` source element exists in DOM, check `will-change` CSS
+5. **Memory leaks**: Call `Fancybox.destroy()` and `draggableRef.current.kill()` in cleanup
 
 ### Gallery Not Rendering
 1. **Check Convex connection**: Ensure `npm run convex` is running in separate terminal
