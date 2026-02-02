@@ -94,7 +94,7 @@ function Home({ category, showAbout }) {
   return (
     <>
       <Header currentCategory={category} onAboutClick={handleOpenAbout} />
-      <FashionGallery projects={projects || []} category={category} />
+      <FashionGallery projects={projects || []} category={category} aboutOpen={aboutOpen} />
       <Footer />
       {aboutOpen && (
         <AboutDetail

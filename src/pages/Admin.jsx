@@ -13,6 +13,7 @@ function Admin() {
   
   const projects = useQuery(api.projects.getAllProjects);
   const deleteProject = useMutation(api.projects.deleteProject);
+  const createProject = useMutation(api.projects.createProject);
 
   // Allow scrolling on admin page
   useEffect(() => {
@@ -43,6 +44,25 @@ function Admin() {
     setEditingProject(null);
   };
 
+  const handleNewProject = async () => {
+    // Create a draft project immediately
+    const projectId = await createProject({
+      title: 'New Project',
+      description: 'Enter description here',
+      category: 'interior'
+    });
+    
+    // Open form in edit mode with the new project
+    const newProject = projects?.find(p => p._id === projectId) || {
+      _id: projectId,
+      title: 'New Project',
+      description: 'Enter description here',
+      category: 'interior'
+    };
+    setEditingProject(newProject);
+    setShowForm(true);
+  };
+
   return (
     <div style={{ 
       padding: '2rem', 
@@ -60,7 +80,7 @@ function Admin() {
         }}>
           <h1>Admin Dashboard</h1>
           <button 
-            onClick={() => setShowForm(true)}
+            onClick={handleNewProject}
             style={{
               padding: '0.75rem 1.5rem',
               background: '#fff',

@@ -11,7 +11,7 @@ import { useSoundSystem } from '../../hooks/useSoundSystem';
 // Register GSAP plugins
 gsap.registerPlugin(Draggable, InertiaPlugin, CustomEase, Flip);
 
-function FashionGallery({ projects, category }) {
+function FashionGallery({ projects, category, aboutOpen }) {
   const viewportRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const gridContainerRef = useRef(null);
@@ -80,6 +80,23 @@ function FashionGallery({ projects, category }) {
       document.body.classList.remove('zoom-mode');
     }
   }, [category]);
+
+  // Close zoom mode when About is opened
+  useEffect(() => {
+    if (aboutOpen && zoomState.isActive) {
+      // Force cleanup of zoom mode state
+      setZoomState({
+        isActive: false,
+        selectedProject: null,
+        selectedItem: null,
+        flipAnimation: null,
+        scalingOverlay: null
+      });
+      
+      if (draggableRef.current) draggableRef.current.enable();
+      document.body.classList.remove('zoom-mode');
+    }
+  }, [aboutOpen]);
 
   // Close zoom mode with Escape key
   useEffect(() => {
