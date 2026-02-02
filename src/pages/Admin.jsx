@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import ProjectForm from '../components/Admin/ProjectForm';
 import ProjectList from '../components/Admin/ProjectList';
 import SoundManager from '../components/Admin/SoundManager';
+import AboutForm from '../components/Admin/AboutForm';
 import SeedButton from '../components/SeedButton';
 
 function Admin() {
@@ -80,6 +81,8 @@ function Admin() {
             onClose={handleFormClose}
           />
         )}
+
+        <AboutForm />
 
         <SoundManager />
 

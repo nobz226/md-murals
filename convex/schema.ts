@@ -41,4 +41,15 @@ export default defineSchema({
     url: v.string(),
     updatedAt: v.number(),
   }).index("by_type", ["type"]),
+
+  about: defineTable({
+    title: v.optional(v.string()),
+    bioTitle: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    bioText: v.optional(v.string()), // Legacy field for backwards compatibility
+    storageId: v.optional(v.id("_storage")),
+    imageStorageId: v.optional(v.id("_storage")), // Legacy field for backwards compatibility
+    imageUrl: v.optional(v.string()),
+    updatedAt: v.number(),
+  }),
 });

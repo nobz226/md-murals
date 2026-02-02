@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { useSoundSystem } from '../hooks/useSoundSystem';
 
-function Header({ currentCategory }) {
+function Header({ currentCategory, onAboutClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { play: playSound } = useSoundSystem();
   const logoRef = useRef(null);
@@ -51,6 +51,15 @@ function Header({ currentCategory }) {
     closeMenu();
   };
 
+  const handleAboutClick = (e) => {
+    e.preventDefault();
+    playSound('nav-click');
+    closeMenu();
+    if (onAboutClick) {
+      onAboutClick();
+    }
+  };
+
   return (
     <div className="header">
       {/* Logo and Hamburger */}
@@ -81,7 +90,9 @@ function Header({ currentCategory }) {
       </div>
       <div className="desktop-nav-location" ref={navLocationRef}>
         <h3>+Studio</h3>
-        <p><Link to="/" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>About</Link></p>
+        <ul>
+          <li><a href="#" onClick={handleAboutClick} onMouseEnter={() => playSound('nav-hover')}>About</a></li>
+        </ul>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>
@@ -110,7 +121,9 @@ function Header({ currentCategory }) {
         </div>
         <div className="mobile-menu-location">
           <h3>+Studio</h3>
-          <li><Link to="/" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>About</Link></li>
+          <ul>
+            <li><a href="#" onClick={handleAboutClick} onMouseEnter={() => playSound('nav-hover')}>About</a></li>
+          </ul>
         </div>
         <div className="mobile-menu-contact">
           <h3>+Connect</h3>
