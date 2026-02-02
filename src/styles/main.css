@@ -306,7 +306,8 @@ h3 {
 
 .grid-item {
   position: absolute;
-  /* width and height set dynamically via JS based on screen size */
+  width: 320px;
+  height: 320px;
   background: #000;
   cursor: pointer;
   will-change: transform, opacity;

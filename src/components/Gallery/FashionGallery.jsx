@@ -17,41 +17,13 @@ function FashionGallery({ projects, category }) {
   
   // Get responsive grid configuration based on viewport
   const getResponsiveConfig = () => {
-    const vw = window.innerWidth;
-    
-    if (vw <= 600) {
-      // Mobile
-      return {
-        itemSize: 280,
-        baseGap: 16,
-        currentZoom: 0.6,
-        currentGap: 32
-      };
-    } else if (vw <= 900) {
-      // Tablet
-      return {
-        itemSize: 350,
-        baseGap: 16,
-        currentZoom: 0.6,
-        currentGap: 32
-      };
-    } else if (vw <= 1400) {
-      // Small desktop
-      return {
-        itemSize: 380,
-        baseGap: 16,
-        currentZoom: 0.6,
-        currentGap: 32
-      };
-    } else {
-      // Large desktop
-      return {
-        itemSize: 420,
-        baseGap: 16,
-        currentZoom: 0.6,
-        currentGap: 32
-      };
-    }
+    // Fixed item size like reference - 320px regardless of viewport
+    return {
+      itemSize: 320,
+      baseGap: 16,
+      currentZoom: 0.6,
+      currentGap: 32
+    };
   };
 
   // Calculate optimal grid layout for projects
@@ -453,12 +425,11 @@ function FashionGallery({ projects, category }) {
 
     gsap.set(viewportRef.current, { opacity: 0 });
 
-    // Calculate auto-fit zoom to ensure all projects are visible
-    const autoZoom = calculateAutoFitZoom();
-    gsap.set(canvasWrapperRef.current, { scale: autoZoom });
+    // Use fixed zoom like reference (0.6)
+    gsap.set(canvasWrapperRef.current, { scale: currentZoom });
 
     const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(autoZoom);
+    const gap = calculateGapForZoom(currentZoom);
     calculateGridDimensions(gap, rows, cols);
 
     const vw = window.innerWidth;
@@ -466,8 +437,8 @@ function FashionGallery({ projects, category }) {
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
     
     // Position grid with slight offset from top-left instead of center
-    const marginX = Math.max(config.currentGap * autoZoom, 100);
-    const marginY = Math.max(config.currentGap * autoZoom, 200);
+    const marginX = Math.max(config.currentGap * currentZoom, 100);
+    const marginY = Math.max(config.currentGap * currentZoom, 200);
     const startX = marginX;
     const startY = marginY;
 
