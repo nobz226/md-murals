@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { useSoundSystem } from '../hooks/useSoundSystem';
 
 function Controls({ currentZoom, setCurrentZoom, isZoomMode, onAutoFit }) {
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const { enabled: soundEnabled, toggle: toggleSound } = useSoundSystem();
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
@@ -14,10 +15,6 @@ function Controls({ currentZoom, setCurrentZoom, isZoomMode, onAutoFit }) {
   const handleAutoFit = () => {
     if (isZoomMode) return;
     if (onAutoFit) onAutoFit();
-  };
-
-  const toggleSound = () => {
-    setSoundEnabled(!soundEnabled);
   };
 
   // Sound wave animation

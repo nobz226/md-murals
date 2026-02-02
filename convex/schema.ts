@@ -23,4 +23,22 @@ export default defineSchema({
     order: v.number(),
     url: v.string(),
   }).index("by_project", ["projectId"]),
+
+  sounds: defineTable({
+    name: v.string(),
+    type: v.union(
+      v.literal("click"),
+      v.literal("open"),
+      v.literal("close"),
+      v.literal("zoom-in"),
+      v.literal("zoom-out"),
+      v.literal("drag-start"),
+      v.literal("drag-end"),
+      v.literal("nav-hover"),
+      v.literal("nav-click")
+    ),
+    storageId: v.optional(v.id("_storage")),
+    url: v.string(),
+    updatedAt: v.number(),
+  }).index("by_type", ["type"]),
 });

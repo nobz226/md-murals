@@ -25,10 +25,14 @@ projects: {
 images: {
   projectId, storageId?, isFeatured, order, url
 }
+sounds: {
+  name, type, storageId, url, updatedAt
+}
 ```
 - `category`: "interior" | "exterior" | "canvas"
 - Images indexed by `projectId` for efficient queries
 - Projects indexed by `category` for filtered views
+- Sounds indexed by `type` for quick lookup: "click" | "open" | "close" | "zoom-in" | "zoom-out" | "drag-start" | "drag-end"
 
 ### Key Components
 - **FashionGallery** ([src/components/Gallery/FashionGallery.jsx](../src/components/Gallery/FashionGallery.jsx)): GSAP-powered responsive grid with drag, zoom, and Flip-based detail view
@@ -36,9 +40,20 @@ images: {
 - **Header** ([src/components/Header.jsx](../src/components/Header.jsx)): Hamburger menu with category navigation, location, contact, and social links
 - **Controls** ([src/components/Controls.jsx](../src/components/Controls.jsx)): Zoom slider (25%-100%), auto-fit button, sound toggle with canvas wave animation
 - **Footer** ([src/components/Footer.jsx](../src/components/Footer.jsx)): Simple footer with artist info and coordinates
-- **Admin Pages** ([src/pages/Admin.jsx](../src/pages/Admin.jsx)): ProjectForm, ProjectList, ImageUploader for content management
+- **Admin Pages** ([src/pages/Admin.jsx](../src/pages/Admin.jsx)): ProjectForm, ProjectList, ImageUploader, SoundManager for content management
+- **SoundManager** ([src/components/Admin/SoundManager.jsx](../src/components/Admin/SoundManager.jsx)): Admin interface for uploading and managing sound effects for all interactions
 - **SeedButton** ([src/components/SeedButton.jsx](../src/components/SeedButton.jsx)): Dev-only tool in admin for seeding/clearing database
 - **Preloader** ([src/components/Preloader.jsx](../src/components/Preloader.jsx)): Canvas-based 2s loading animation (shows once per session)
+
+### Sound System
+- **useSoundSystem** ([src/hooks/useSoundSystem.jsx](../src/hooks/useSoundSystem.jsx)): React context/hook for managing sound effects
+  - Preloads all sounds from Convex database
+  - `play(soundType)` - Plays specific sound if enabled
+  - `toggle()` - Enables/disables sound system
+  - `enabled` - Current state of sound system
+- **Sound Types**: click, open, close, zoom-in, zoom-out, drag-start, drag-end
+- **Admin Upload**: Upload audio files (MP3, WAV, OGG) via SoundManager in admin panel
+- **Integration**: Sounds triggered throughout gallery interactions (clicks, zoom, drag, split screen open/close)
 
 ## Development Workflow
 
@@ -135,12 +150,14 @@ Storage URLs auto-generated via `ctx.storage.getUrl(storageId)` in backend
   - Formula: `cols = Math.ceil(Math.sqrt(numProjects * 1.5))`, `rows = Math.ceil(numProjects / cols)`
   - Creates slightly wider than tall grid for better visual balance
   - Each project appears exactly once (no cycling or duplicates)
-- **Responsive item sizes** (auto-recalculates on window resize):
-  - Mobile (≤600px): 200px items
-  - Tablet (≤900px): 250px items
-  - Small Desktop (≤1400px): 280px items
-  - Large Desktop (>1400px): 320px items
-- **Auto-fit zoom**: Scales grid to fit 70% of viewport on initial load
+- **Fixed item size**: 320px × 320px across all viewports
+- **Variable zoom levels**: 0.3 (30%), 0.6 (60%), 1.0 (100%), or auto-calculated fit zoom
+- **Reactive zoom system**: 
+  - `currentZoom` state triggers useEffect to recalculate grid dimensions and bounds
+  - GSAP animates scale change on `canvasWrapperRef` over 0.8s
+  - Draggable bounds update during animation via `onUpdate` callback
+  - `initDraggable()` called on animation complete to finalize bounds
+- **Auto-fit zoom**: Scales grid to fit 85% of viewport
   - Calculated via `calculateAutoFitZoom()` - uses smaller of width/height fit ratio
   - Ensures all projects visible without dragging
   - Capped at 1.0 max zoom
@@ -196,16 +213,19 @@ Category links in Header component update route, triggering query change and gri
 ## UI Controls
 
 ### Zoom Controls ([Controls.jsx](../src/components/Controls.jsx))
-- **Slider**: 25%-100% zoom (disabled during zoom mode)
-- **Auto-fit**: Calculates optimal zoom to fit entire grid in viewport
+- **Four zoom levels**: ZOOM OUT (30%), NORMAL (60%), ZOOM IN (100%), FIT (auto-calculated)
+- **Auto-fit**: Calculates optimal zoom to fit entire grid in 85% of viewport
 - **Sound Toggle**: Canvas-animated waveform (feature for future audio integration)
 - Position: Fixed bottom-center, moves to split-right during zoom mode
 
 **Implementation Notes**:
-- **Current behavior**: Fixed zoom at 0.6 (60%) - zoom controls UI exists but functionality is limited to auto-fit
+- Zoom changes animate smoothly with GSAP over 0.8s duration
+- Each zoom change recalculates grid dimensions, gap spacing, and draggable bounds
+- `handleSetZoom(level)` updates state, triggers GSAP animation, reinitializes draggable
+- `handleAutoFit()` calculates optimal zoom based on grid size vs viewport (85% target)
 - `isZoomMode` prop disables controls to prevent conflicts with ProjectDetail
-- `onAutoFit` callback triggers `calculateGridDimensions()` + bounds recalculation
 - Canvas animation uses `requestAnimationFrame` with color interpolation for smooth transitions
+- Draggable bounds update during zoom animation via `onUpdate` callback
 
 ### Header Navigation ([Header.jsx](../src/components/Header.jsx))
 - Hamburger menu with category links, studio info, contact, and social links

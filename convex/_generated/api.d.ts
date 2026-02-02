@@ -11,6 +11,7 @@
 import type * as images from "../images.js";
 import type * as projects from "../projects.js";
 import type * as seed from "../seed.js";
+import type * as sounds from "../sounds.js";
 
 import type {
   ApiFromModules,
@@ -22,6 +23,7 @@ declare const fullApi: ApiFromModules<{
   images: typeof images;
   projects: typeof projects;
   seed: typeof seed;
+  sounds: typeof sounds;
 }>;
 
 /**

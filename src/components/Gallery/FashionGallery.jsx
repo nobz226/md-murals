@@ -5,6 +5,8 @@ import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
 import { CustomEase } from 'gsap/dist/CustomEase';
 import { Flip } from 'gsap/dist/Flip';
 import ProjectDetail from './ProjectDetail';
+import Controls from '../Controls';
+import { useSoundSystem } from '../../hooks/useSoundSystem';
 
 // Register GSAP plugins
 gsap.registerPlugin(Draggable, InertiaPlugin, CustomEase, Flip);
@@ -14,6 +16,8 @@ function FashionGallery({ projects, category }) {
   const canvasWrapperRef = useRef(null);
   const gridContainerRef = useRef(null);
   const draggableRef = useRef(null);
+  
+  const { play: playSound } = useSoundSystem();
   
   // Get responsive grid configuration based on viewport
   const getResponsiveConfig = () => {
@@ -39,6 +43,7 @@ function FashionGallery({ projects, category }) {
   
   const [config, setConfig] = useState(getResponsiveConfig());
 
+  const [currentZoom, setCurrentZoom] = useState(0.6);
   const [zoomState, setZoomState] = useState({
     isActive: false,
     selectedProject: null,
@@ -48,7 +53,6 @@ function FashionGallery({ projects, category }) {
   });
   const zoomStateRef = useRef(zoomState);
 
-  const currentZoom = 0.6; // Fixed zoom level
   const gridItemsRef = useRef([]);
   const gridDimensionsRef = useRef({});
   const lastValidPositionRef = useRef({ x: 0, y: 0 });
@@ -88,6 +92,34 @@ function FashionGallery({ projects, category }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [zoomState.isActive]);
+
+  // Handle zoom changes - recalculate grid and bounds
+  useEffect(() => {
+    if (!projects || projects.length === 0 || zoomState.isActive) return;
+    if (!gridItemsRef.current || gridItemsRef.current.length === 0) return;
+
+    const { rows, cols } = calculateOptimalGrid(projects.length);
+    const gap = calculateGapForZoom(currentZoom);
+    calculateGridDimensions(gap, rows, cols);
+
+    // Animate zoom change on canvas wrapper
+    gsap.to(canvasWrapperRef.current, {
+      scale: currentZoom,
+      duration: 0.8,
+      ease: customEaseRef.current || 'power2.inOut',
+      onUpdate: () => {
+        // Update bounds during zoom animation
+        if (draggableRef.current) {
+          const bounds = calculateBounds();
+          draggableRef.current.applyBounds(bounds);
+        }
+      },
+      onComplete: () => {
+        // Reinitialize draggable with new bounds
+        initDraggable();
+      }
+    });
+  }, [currentZoom]);
 
   // Initialize custom eases
   useEffect(() => {
@@ -166,28 +198,58 @@ function FashionGallery({ projects, category }) {
     return gridDimensionsRef.current;
   };
 
-  // Calculate optimal zoom to fit grid in 70% of viewport
+  // Calculate optimal zoom to fit grid in viewport
   const calculateAutoFitZoom = () => {
-    if (!projects || projects.length === 0) return currentZoom;
+    if (!projects || projects.length === 0) return 0.6;
     
     const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(currentZoom);
+    // Use base gap for calculation
+    const gap = 32;
     const gridWidth = cols * (config.itemSize + gap) - gap;
     const gridHeight = rows * (config.itemSize + gap) - gap;
     
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     
-    // Target 90% of viewport for larger appearance
-    const targetWidth = vw * 0.9;
-    const targetHeight = vh * 0.9;
+    // Target 85% of viewport to ensure good visibility with margins
+    const targetWidth = vw * 0.85;
+    const targetHeight = vh * 0.85;
     
     // Calculate zoom to fit
     const zoomToFitWidth = targetWidth / gridWidth;
     const zoomToFitHeight = targetHeight / gridHeight;
     
-    // Use the smaller zoom to ensure both dimensions fit
-    return Math.min(zoomToFitWidth, zoomToFitHeight, 1.0); // Cap at 1.0 max zoom
+    // Use the smaller zoom to ensure both dimensions fit, cap at 1.0
+    return Math.min(zoomToFitWidth, zoomToFitHeight, 1.0);
+  };
+
+  // Set zoom level with animation
+  const handleSetZoom = (zoomLevel) => {
+    if (zoomState.isActive) return;
+    
+    // Play zoom sound
+    if (zoomLevel > currentZoom) {
+      playSound('zoom-in');
+    } else if (zoomLevel < currentZoom) {
+      playSound('zoom-out');
+    }
+    
+    setCurrentZoom(zoomLevel);
+  };
+
+  // Auto-fit zoom to viewport
+  const handleAutoFit = () => {
+    if (zoomState.isActive) return;
+    const fitZoom = calculateAutoFitZoom();
+    
+    // Play appropriate zoom sound
+    if (fitZoom > currentZoom) {
+      playSound('zoom-in');
+    } else if (fitZoom < currentZoom) {
+      playSound('zoom-out');
+    }
+    
+    setCurrentZoom(fitZoom);
   };
 
   // Calculate viewport bounds
@@ -248,6 +310,7 @@ function FashionGallery({ projects, category }) {
       },
       onDragStart: () => {
         document.body.classList.add("dragging");
+        playSound('drag-start');
         lastValidPositionRef.current.x = draggableRef.current.x;
         lastValidPositionRef.current.y = draggableRef.current.y;
       },
@@ -257,6 +320,7 @@ function FashionGallery({ projects, category }) {
       },
       onDragEnd: () => {
         document.body.classList.remove("dragging");
+        playSound('drag-end');
       }
     })[0];
   };
@@ -320,6 +384,7 @@ function FashionGallery({ projects, category }) {
           // Add click event
           item.addEventListener('click', () => {
             if (!zoomStateRef.current.isActive) {
+              playSound('click');
               enterZoomMode(itemData);
             }
           });
@@ -336,6 +401,8 @@ function FashionGallery({ projects, category }) {
   // Enter zoom mode
   const enterZoomMode = (itemData) => {
     console.log('enterZoomMode called', itemData);
+    playSound('open');
+    
     setZoomState(prev => {
       const newState = {
         ...prev,
@@ -353,6 +420,7 @@ function FashionGallery({ projects, category }) {
 
   // Exit zoom mode
   const exitZoomMode = () => {
+    playSound('close');
     setZoomState({
       isActive: false,
       selectedProject: null,
@@ -477,6 +545,13 @@ function FashionGallery({ projects, category }) {
           </div>
         </div>
       </div>
+
+      <Controls
+        currentZoom={currentZoom}
+        setCurrentZoom={handleSetZoom}
+        isZoomMode={zoomState.isActive}
+        onAutoFit={handleAutoFit}
+      />
 
       {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
         <ProjectDetail

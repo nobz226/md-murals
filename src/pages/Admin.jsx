@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import ProjectForm from '../components/Admin/ProjectForm';
 import ProjectList from '../components/Admin/ProjectList';
+import SoundManager from '../components/Admin/SoundManager';
 import SeedButton from '../components/SeedButton';
 
 function Admin() {
@@ -11,6 +12,19 @@ function Admin() {
   
   const projects = useQuery(api.projects.getAllProjects);
   const deleteProject = useMutation(api.projects.deleteProject);
+
+  // Allow scrolling on admin page
+  useEffect(() => {
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    document.body.style.cursor = 'default';
+    
+    return () => {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+      document.body.style.cursor = 'grab';
+    };
+  }, []);
 
   const handleEdit = (project) => {
     setEditingProject(project);
@@ -66,6 +80,8 @@ function Admin() {
             onClose={handleFormClose}
           />
         )}
+
+        <SoundManager />
 
         <ProjectList 
           projects={projects || []}

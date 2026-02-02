@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { useSoundSystem } from '../hooks/useSoundSystem';
 
 function Header({ currentCategory }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { play: playSound } = useSoundSystem();
   const logoRef = useRef(null);
   const navValuesRef = useRef(null);
   const navLocationRef = useRef(null);
@@ -36,6 +38,7 @@ function Header({ currentCategory }) {
   }, []);
 
   const toggleMenu = () => {
+    playSound('click');
     setMenuOpen(!menuOpen);
   };
 
@@ -43,11 +46,16 @@ function Header({ currentCategory }) {
     setMenuOpen(false);
   };
 
+  const handleNavClick = () => {
+    playSound('nav-click');
+    closeMenu();
+  };
+
   return (
     <div className="header">
       {/* Logo and Hamburger */}
       <div className="nav-section" ref={logoRef}>
-        <Link to="/" className="logo-container" onClick={closeMenu}>
+        <Link to="/" className="logo-container" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>
           <div className="logo-circles">
             <div className="circle circle-1"></div>
             <div className="circle circle-2"></div>
@@ -65,27 +73,27 @@ function Header({ currentCategory }) {
       <div className="desktop-nav-values" ref={navValuesRef}>
         <h3>+Menu</h3>
         <ul>
-          <li><Link to="/">All Work</Link></li>
-          <li><Link to="/interior">Interior Murals</Link></li>
-          <li><Link to="/exterior">Exterior Murals</Link></li>
-          <li><Link to="/canvas">Canvas</Link></li>
+          <li><Link to="/" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>All Work</Link></li>
+          <li><Link to="/interior" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>Interior Murals</Link></li>
+          <li><Link to="/exterior" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>Exterior Murals</Link></li>
+          <li><Link to="/canvas" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>Canvas</Link></li>
         </ul>
       </div>
       <div className="desktop-nav-location" ref={navLocationRef}>
         <h3>+Studio</h3>
-        <p><Link to="/">About</Link></p>
+        <p><Link to="/" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>About</Link></p>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>
       <div className="desktop-nav-contact" ref={navContactRef}>
         <h3>+Connect</h3>
-        <p><a href="mailto:info@mihaidarvasa.com">info@mihaidarvasa.com</a></p>
+        <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>info@mihaidarvasa.com</a></p>
       </div>
       <div className="desktop-nav-social" ref={navSocialRef}>
         <h3>+Follow</h3>
         <ul>
-          <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-          <li><a href="https://facebook.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Facebook</a></li>
+          <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer" onMouseEnter={() => playSound('nav-hover')}>Instagram</a></li>
+          <li><a href="https://facebook.com/mihaidarvasa" target="_blank" rel="noopener noreferrer" onMouseEnter={() => playSound('nav-hover')}>Facebook</a></li>
         </ul>
       </div>
 
@@ -94,19 +102,19 @@ function Header({ currentCategory }) {
         <div className="mobile-menu-values">
           <h3>+Menu</h3>
           <ul>
-            <li><Link to="/" onClick={closeMenu}>All Work</Link></li>
-            <li><Link to="/interior" onClick={closeMenu}>Interior Murals</Link></li>
-            <li><Link to="/exterior" onClick={closeMenu}>Exterior Murals</Link></li>
-            <li><Link to="/canvas" onClick={closeMenu}>Canvas</Link></li>
+            <li><Link to="/" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>All Work</Link></li>
+            <li><Link to="/interior" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>Interior Murals</Link></li>
+            <li><Link to="/exterior" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>Exterior Murals</Link></li>
+            <li><Link to="/canvas" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>Canvas</Link></li>
           </ul>
         </div>
         <div className="mobile-menu-location">
           <h3>+Studio</h3>
-          <li><Link to="/" onClick={closeMenu}>About</Link></li>
+          <li><Link to="/" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>About</Link></li>
         </div>
         <div className="mobile-menu-contact">
           <h3>+Connect</h3>
-          <p><a href="mailto:info@mihaidarvasa.com">info@mihaidarvasa.com</a></p>
+          <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>info@mihaidarvasa.com</a></p>
         </div>
         <div className="mobile-menu-social">
           <h3>+Follow</h3>
