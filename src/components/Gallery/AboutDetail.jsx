@@ -153,7 +153,7 @@ function AboutDetail({ onClose, customEase }) {
             )}
           </div>
         </div>
-        <div className="split-right">
+        <div className="split-right" onClick={handleOverlayClick}>
           <div style={{
             maxWidth: '600px',
             padding: '2rem',

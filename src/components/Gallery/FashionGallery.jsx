@@ -35,7 +35,14 @@ function FashionGallery({ projects, category, aboutOpen }) {
     if (numProjects === 0) return { rows: 0, cols: 0 };
     
     // Calculate columns based on aspect ratio preference (slightly wider than tall)
-    const cols = Math.ceil(Math.sqrt(numProjects * 1.5));
+    let cols = Math.ceil(Math.sqrt(numProjects * 1.5));
+    
+    // Limit columns to 6 on mobile viewports (600px and below)
+    const isMobile = window.innerWidth <= 600;
+    if (isMobile) {
+      cols = Math.min(cols, 6);
+    }
+    
     const rows = Math.ceil(numProjects / cols);
     
     return { rows, cols };
@@ -151,9 +158,56 @@ function FashionGallery({ projects, category, aboutOpen }) {
       setConfig(newConfig);
     };
     
+    // Handle scroll wheel for gallery navigation
+    const handleWheel = (e) => {
+      // Don't handle wheel events during zoom mode or if draggable isn't initialized
+      if (zoomState.isActive || !draggableRef.current) return;
+      
+      // Prevent default scroll behavior
+      e.preventDefault();
+      
+      // Get current position
+      const currentX = gsap.getProperty(canvasWrapperRef.current, 'x');
+      const currentY = gsap.getProperty(canvasWrapperRef.current, 'y');
+      
+      // Calculate new position based on scroll delta
+      // Invert deltaY for natural scroll direction
+      const scrollSpeed = 1.5;
+      let newX = currentX - e.deltaX * scrollSpeed;
+      let newY = currentY - e.deltaY * scrollSpeed;
+      
+      // Get bounds to constrain movement
+      const { rows, cols } = calculateOptimalGrid(projects.length);
+      const gap = calculateGapForZoom(currentZoom);
+      calculateGridDimensions(gap, rows, cols);
+      const bounds = calculateBounds();
+      
+      // Constrain to bounds
+      newX = Math.max(bounds.minX, Math.min(bounds.maxX, newX));
+      newY = Math.max(bounds.minY, Math.min(bounds.maxY, newY));
+      
+      // Update position with smooth animation
+      gsap.to(canvasWrapperRef.current, {
+        x: newX,
+        y: newY,
+        duration: 0.3,
+        ease: 'power2.out',
+        overwrite: 'auto'
+      });
+      
+      // Update draggable position
+      if (draggableRef.current) {
+        draggableRef.current.update();
+      }
+    };
+    
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [zoomState.isActive]);
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('wheel', handleWheel);
+    };
+  }, [zoomState.isActive, projects, currentZoom]);
 
   // Handle config changes from resize (regenerate grid without intro animation)
   useEffect(() => {
