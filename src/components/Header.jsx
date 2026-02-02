@@ -73,7 +73,7 @@ function Header({ currentCategory }) {
       </div>
       <div className="desktop-nav-location" ref={navLocationRef}>
         <h3>+Studio</h3>
-        <p><Link to="/">About</Link></p>
+        <p><Link to="/about">About</Link></p>
         <p>Vancouver</p>
         <p>British Columbia</p>
       </div>
@@ -102,7 +102,7 @@ function Header({ currentCategory }) {
         </div>
         <div className="mobile-menu-location">
           <h3>+Studio</h3>
-          <li><Link to="/" onClick={closeMenu}>About</Link></li>
+          <li><Link to="/about" onClick={closeMenu}>About</Link></li>
         </div>
         <div className="mobile-menu-contact">
           <h3>+Connect</h3>

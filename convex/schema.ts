@@ -23,4 +23,15 @@ export default defineSchema({
     order: v.number(),
     url: v.string(),
   }).index("by_project", ["projectId"]),
+
+  about: defineTable({
+    title: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    bioText: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
+    imageStorageId: v.optional(v.id("_storage")),
+    url: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  }),
 });
