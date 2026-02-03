@@ -617,13 +617,15 @@ function FashionGallery({ projects, category, aboutOpen }) {
         </div>
       </div>
 
-      <Controls
-        currentZoom={currentZoom}
-        setCurrentZoom={handleSetZoom}
-        isZoomMode={zoomState.isActive}
-        onAutoFit={handleAutoFit}
-      />
-
+      {!zoomState.isActive && !aboutOpen && (
+        <Controls 
+          currentZoom={currentZoom}
+          setCurrentZoom={handleSetZoom}
+          isZoomMode={zoomState.isActive}
+          onAutoFit={handleAutoFit}
+        />
+      )}
+      
       {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
         <ProjectDetail
           project={zoomState.selectedProject}
