@@ -11,7 +11,7 @@ import { useSoundSystem } from '../../hooks/useSoundSystem';
 // Register GSAP plugins
 gsap.registerPlugin(Draggable, InertiaPlugin, CustomEase, Flip);
 
-function Gallery({ projects, category, aboutOpen }) {
+function FashionGallery({ projects, category, aboutOpen }) {
   const viewportRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const gridContainerRef = useRef(null);
@@ -636,4 +636,4 @@ function Gallery({ projects, category, aboutOpen }) {
   );
 }
 
-export default Gallery;
+export default FashionGallery;

@@ -4,4 +4,10 @@
 - Make text bigger
 - Add blur to gallery images
 - Studio = About   About = Bio
-- 
+- Fix Fancybox for split screen view
+- Add phone number for Connect
+- Make email and phone number directly visible on mobile
+- Remove bottom panel on mobile or restyle ??
+- Make bottom panel dissapear when in split screen view
+- Cannot close hamburger menu on mobile
+- Make responsive for tablets

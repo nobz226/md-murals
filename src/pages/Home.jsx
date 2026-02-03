@@ -5,7 +5,7 @@ import { CustomEase } from 'gsap/dist/CustomEase';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Preloader from '../components/Preloader';
-import FashionGallery from '../components/Gallery/FashionGallery';
+import Gallery from '../components/Gallery/Gallery';
 import AboutDetail from '../components/Gallery/AboutDetail';
 import { useSoundSystem } from '../hooks/useSoundSystem';
 import gsap from 'gsap';
@@ -94,7 +94,7 @@ function Home({ category, showAbout }) {
   return (
     <>
       <Header currentCategory={category} onAboutClick={handleOpenAbout} />
-      <FashionGallery projects={projects || []} category={category} aboutOpen={aboutOpen} />
+      <Gallery projects={projects || []} category={category} aboutOpen={aboutOpen} />
       <Footer />
       {aboutOpen && (
         <AboutDetail
