@@ -1,0 +1,7 @@
+- Close split-screen by clicking on the background
+- Scale all images in split screen
+- Add subtitle to main header title
+- Make text bigger
+- Add blur to gallery images
+- Studio = About   About = Bio
+- 
