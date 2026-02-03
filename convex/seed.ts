@@ -4,6 +4,7 @@ export const clearData = mutation({
   handler: async (ctx) => {
     const projects = await ctx.db.query("projects").collect();
     const images = await ctx.db.query("images").collect();
+    const sounds = await ctx.db.query("sounds").collect();
     
     for (const image of images) {
       if (image.storageId) {
@@ -16,7 +17,17 @@ export const clearData = mutation({
       await ctx.db.delete(project._id);
     }
     
-    return { success: true, message: `Cleared ${projects.length} projects and ${images.length} images` };
+    for (const sound of sounds) {
+      if (sound.storageId) {
+        await ctx.storage.delete(sound.storageId);
+      }
+      await ctx.db.delete(sound._id);
+    }
+    
+    return { 
+      success: true, 
+      message: `Cleared ${projects.length} projects, ${images.length} images, and ${sounds.length} sounds` 
+    };
   },
 });
 
@@ -150,6 +161,60 @@ export const seedData = mutation({
       success: true, 
       message: `Seeded 39 projects (13 per category) with unique images`,
       totalProjects: projectIds.length
+    };
+  },
+});
+
+// Seed example sounds (free sound effects from freesound.org and similar sources)
+export const seedSounds = mutation({
+  handler: async (ctx) => {
+    // Check if we already have sounds
+    const existing = await ctx.db.query("sounds").first();
+    if (existing) {
+      return { success: false, message: "Database already has sounds" };
+    }
+
+    const now = Date.now();
+    
+    // Verified working sound URLs from Mixkit (free, no attribution required)
+    // All URLs tested and confirmed accessible as of Feb 2026
+    const soundUrls = {
+      click: "https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3",        // Select click (interface)
+      open: "https://assets.mixkit.co/active_storage/sfx/1489/1489-preview.mp3",         // Cinematic whoosh (open detail)
+      close: "https://assets.mixkit.co/active_storage/sfx/2569/2569-preview.mp3",        // Click error (close/back)
+      "zoom-in": "https://assets.mixkit.co/active_storage/sfx/1714/1714-preview.mp3",    // Fast rocket whoosh (zoom in)
+      "zoom-out": "https://assets.mixkit.co/active_storage/sfx/1491/1491-preview.mp3",   // Cinematic whoosh stutter (zoom out)
+      "drag-start": "https://assets.mixkit.co/active_storage/sfx/2574/2574-preview.mp3", // Software interface start
+      "drag-end": "https://assets.mixkit.co/active_storage/sfx/2575/2575-preview.mp3",   // Software interface back
+      "nav-hover": "https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3",  // Interface option select (subtle hover)
+      "nav-click": "https://assets.mixkit.co/active_storage/sfx/1109/1109-preview.mp3"   // Software interface start (nav click)
+    };
+
+    const soundTypes = [
+      { type: "click" as const, name: "Click Sound" },
+      { type: "open" as const, name: "Open Sound" },
+      { type: "close" as const, name: "Close Sound" },
+      { type: "zoom-in" as const, name: "Zoom In Sound" },
+      { type: "zoom-out" as const, name: "Zoom Out Sound" },
+      { type: "drag-start" as const, name: "Drag Start Sound" },
+      { type: "drag-end" as const, name: "Drag End Sound" },
+      { type: "nav-hover" as const, name: "Nav Hover Sound" },
+      { type: "nav-click" as const, name: "Nav Click Sound" }
+    ];
+
+    for (const sound of soundTypes) {
+      await ctx.db.insert("sounds", {
+        name: sound.name,
+        type: sound.type,
+        url: soundUrls[sound.type],
+        updatedAt: now,
+      } as any); // Using 'as any' because we're creating sounds without storageId for seed data
+    }
+
+    return { 
+      success: true, 
+      message: `Seeded ${soundTypes.length} example sounds (including nav-hover and nav-click)`,
+      totalSounds: soundTypes.length
     };
   },
 });

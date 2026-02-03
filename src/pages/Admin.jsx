@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import ProjectForm from '../components/Admin/ProjectForm';
 import ProjectList from '../components/Admin/ProjectList';
+import SoundManager from '../components/Admin/SoundManager';
 import AboutForm from '../components/Admin/AboutForm';
 import SeedButton from '../components/SeedButton';
 
@@ -12,6 +13,20 @@ function Admin() {
   
   const projects = useQuery(api.projects.getAllProjects);
   const deleteProject = useMutation(api.projects.deleteProject);
+  const createProject = useMutation(api.projects.createProject);
+
+  // Allow scrolling on admin page
+  useEffect(() => {
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    document.body.style.cursor = 'default';
+    
+    return () => {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+      document.body.style.cursor = 'grab';
+    };
+  }, []);
 
   const handleEdit = (project) => {
     setEditingProject(project);
@@ -27,6 +42,25 @@ function Admin() {
   const handleFormClose = () => {
     setShowForm(false);
     setEditingProject(null);
+  };
+
+  const handleNewProject = async () => {
+    // Create a draft project immediately
+    const projectId = await createProject({
+      title: 'New Project',
+      description: 'Enter description here',
+      category: 'interior'
+    });
+    
+    // Open form in edit mode with the new project
+    const newProject = projects?.find(p => p._id === projectId) || {
+      _id: projectId,
+      title: 'New Project',
+      description: 'Enter description here',
+      category: 'interior'
+    };
+    setEditingProject(newProject);
+    setShowForm(true);
   };
 
   return (
@@ -46,7 +80,7 @@ function Admin() {
         }}>
           <h1>Admin Dashboard</h1>
           <button 
-            onClick={() => setShowForm(true)}
+            onClick={handleNewProject}
             style={{
               padding: '0.75rem 1.5rem',
               background: '#fff',
@@ -69,6 +103,10 @@ function Admin() {
             onClose={handleFormClose}
           />
         )}
+
+        <AboutForm />
+
+        <SoundManager />
 
         <ProjectList 
           projects={projects || []}

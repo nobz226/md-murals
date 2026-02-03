@@ -8,9 +8,7 @@ function ProjectForm({ project, onClose }) {
   const [description, setDescription] = useState(project?.description || '');
   const [category, setCategory] = useState(project?.category || 'interior');
   const [uploading, setUploading] = useState(false);
-  const [currentProjectId, setCurrentProjectId] = useState(project?._id || null);
 
-  const createProject = useMutation(api.projects.createProject);
   const updateProject = useMutation(api.projects.updateProject);
 
   const handleSubmit = async (e) => {
@@ -18,28 +16,13 @@ function ProjectForm({ project, onClose }) {
     setUploading(true);
 
     try {
-      if (project) {
-        // Update existing project
-        await updateProject({
-          id: project._id,
-          title,
-          description,
-          category
-        });
-      } else {
-        // Create new project
-        const projectId = await createProject({
-          title,
-          description,
-          category
-        });
-        setCurrentProjectId(projectId);
-      }
-      
-      if (!currentProjectId) {
-        // If this was a new project, keep form open for image upload
-        return;
-      }
+      // Update the project (always exists now since we create it on "New Project" click)
+      await updateProject({
+        id: project._id,
+        title,
+        description,
+        category
+      });
       
       onClose();
     } catch (error) {
@@ -128,11 +111,9 @@ function ProjectForm({ project, onClose }) {
           </select>
         </div>
 
-        {currentProjectId && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <ImageUploader projectId={currentProjectId} />
-          </div>
-        )}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <ImageUploader projectId={project._id} />
+        </div>
 
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button

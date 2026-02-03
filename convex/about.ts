@@ -1,81 +1,84 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get about data (should only be one record)
+// Get about page data (there should only be one record)
 export const getAbout = query({
-  args: {},
   handler: async (ctx) => {
     const about = await ctx.db.query("about").first();
     if (!about) return null;
     
-    // Normalize field names for backwards compatibility
+    // Handle backwards compatibility - prefer new field names
     return {
-      _id: about._id,
-      _creationTime: about._creationTime,
-      title: about.title || "Artist Name",
-      bio: about.bio || about.bioText || "",
+      ...about,
+      bio: about.bio || about.bioText,
       storageId: about.storageId || about.imageStorageId,
-      url: about.url || about.imageUrl || "",
     };
   },
 });
 
-// Update or create about data
+// Update or create about page data
 export const updateAbout = mutation({
   args: {
-    title: v.string(),
-    bio: v.string(),
-    storageId: v.optional(v.id("_storage")),
+    title: v.optional(v.string()),
+    bioTitle: v.optional(v.string()),
+    bio: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("about").first();
-
-    // Generate URL from storageId if provided
-    let url = "";
-    if (args.storageId) {
-      const urlResult = await ctx.storage.getUrl(args.storageId);
-      url = urlResult || "";
-    } else if (existing?.storageId) {
-      const urlResult = await ctx.storage.getUrl(existing.storageId);
-      url = urlResult || "";
-    } else if (existing?.imageStorageId) {
-      const urlResult = await ctx.storage.getUrl(existing.imageStorageId);
-      url = urlResult || "";
-    }
+    const now = Date.now();
 
     if (existing) {
-      // Update existing record
       await ctx.db.patch(existing._id, {
         title: args.title,
+        bioTitle: args.bioTitle,
         bio: args.bio,
-        bioText: args.bio, // Keep both for backwards compatibility
-        ...(args.storageId && { 
-          storageId: args.storageId,
-          imageStorageId: args.storageId 
-        }),
-        url: url,
-        imageUrl: url,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
       return existing._id;
     } else {
-      // Create new record
-      const id = await ctx.db.insert("about", {
+      return await ctx.db.insert("about", {
         title: args.title,
+        bioTitle: args.bioTitle,
         bio: args.bio,
-        bioText: args.bio,
-        storageId: args.storageId,
-        imageStorageId: args.storageId,
-        url: url,
-        imageUrl: url,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
-      return id;
     }
   },
 });
 
-// Generate upload URL for about image
+// Generate upload URL for featured image
 export const generateUploadUrl = mutation(async (ctx) => {
   return await ctx.storage.generateUploadUrl();
+});
+
+// Save featured image
+export const saveFeaturedImage = mutation({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.query("about").first();
+    const url = await ctx.storage.getUrl(args.storageId);
+    const now = Date.now();
+
+    if (existing) {
+      // Delete old image if exists
+      if (existing.storageId) {
+        await ctx.storage.delete(existing.storageId);
+      }
+      
+      await ctx.db.patch(existing._id, {
+        storageId: args.storageId,
+        imageUrl: url,
+        updatedAt: now,
+      });
+      return existing._id;
+    } else {
+      return await ctx.db.insert("about", {
+        storageId: args.storageId,
+        imageUrl: url,
+        updatedAt: now,
+      });
+    }
+  },
 });

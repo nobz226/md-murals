@@ -1,23 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { api } from '../../../convex/_generated/api';
 import gsap from 'gsap';
-import { useNavigate } from 'react-router-dom';
-import { useSoundSystem } from '../hooks/useSoundSystem';
 
-function About() {
+function AboutDetail({ onClose, customEase }) {
   const about = useQuery(api.about.getAbout);
-  const navigate = useNavigate();
-  const { play: playSound } = useSoundSystem();
   const splitContainerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const titleOverlayRef = useRef(null);
+  const imageTitleOverlayRef = useRef(null);
 
   useEffect(() => {
     if (!about) return;
-
-    playSound('open');
-    document.body.classList.add('zoom-mode');
 
     const splitContainer = splitContainerRef.current;
     
@@ -25,67 +18,60 @@ function About() {
     gsap.to(splitContainer, {
       opacity: 1,
       duration: 1.2,
-      ease: 'power2.inOut'
+      ease: customEase || 'power2.inOut'
     });
 
     // Animate title overlay
-    const overlayElement = titleOverlayRef.current;
-    if (overlayElement) {
-      const categoryElement = overlayElement.querySelector('.image-slide-number span');
-      const titleElement = overlayElement.querySelector('.image-slide-title h1');
-      const descriptionElement = overlayElement.querySelector('.description-line');
+    const overlayElement = imageTitleOverlayRef.current;
+    const numberElement = overlayElement.querySelector('.image-slide-number span');
+    const titleElement = overlayElement.querySelector('.image-slide-title h1');
+    const descriptionElement = overlayElement.querySelector('.description-line');
 
-      gsap.set(categoryElement, { y: 20, opacity: 0 });
-      gsap.set(titleElement, { y: 60, opacity: 0 });
-      gsap.set(descriptionElement, { y: 20, opacity: 0 });
+    gsap.set(numberElement, { y: 20, opacity: 0 });
+    gsap.set(titleElement, { y: 60, opacity: 0 });
+    gsap.set(descriptionElement, { y: 20, opacity: 0 });
 
-      gsap.to(categoryElement, {
-        duration: 0.6,
-        y: 0,
-        opacity: 1,
-        ease: 'power2.out',
-        delay: 0.3
-      });
+    gsap.to(numberElement, {
+      duration: 0.6,
+      y: 0,
+      opacity: 1,
+      ease: 'power2.out',
+      delay: 0.1
+    });
 
-      gsap.to(titleElement, {
-        duration: 0.6,
-        y: 0,
-        opacity: 1,
-        ease: 'power2.out',
-        delay: 0.45
-      });
+    gsap.to(titleElement, {
+      duration: 0.6,
+      y: 0,
+      opacity: 1,
+      ease: 'power2.out',
+      delay: 0.25
+    });
 
-      gsap.to(descriptionElement, {
-        duration: 0.6,
-        y: 0,
-        opacity: 1,
-        ease: 'power2.out',
-        delay: 0.6
-      });
+    gsap.to(descriptionElement, {
+      duration: 0.6,
+      y: 0,
+      opacity: 1,
+      ease: 'power2.out',
+      delay: 0.4
+    });
 
-      gsap.to(overlayElement, {
-        opacity: 1,
-        duration: 0.3,
-        delay: 0.9
-      });
-    }
+    gsap.to(overlayElement, {
+      opacity: 1,
+      duration: 0.3
+    });
 
     // Animate close button
     gsap.fromTo(closeButtonRef.current,
       { x: 40, opacity: 0 },
       { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out', delay: 0.9 }
     );
-
-    return () => {
-      document.body.classList.remove('zoom-mode');
-    };
-  }, [about]);
+  }, [about, customEase]);
 
   const handleClose = () => {
-    playSound('close');
-    
-    const overlayElement = titleOverlayRef.current;
-    const categoryElement = overlayElement.querySelector('.image-slide-number span');
+    if (!about) return;
+
+    const overlayElement = imageTitleOverlayRef.current;
+    const numberElement = overlayElement.querySelector('.image-slide-number span');
     const titleElement = overlayElement.querySelector('.image-slide-title h1');
     const descriptionElement = overlayElement.querySelector('.description-line');
 
@@ -96,7 +82,7 @@ function About() {
       ease: 'power2.out'
     });
 
-    gsap.to(categoryElement, {
+    gsap.to(numberElement, {
       duration: 0.4,
       y: -20,
       opacity: 0,
@@ -131,7 +117,7 @@ function About() {
       duration: 0.8,
       ease: 'power2.out',
       onComplete: () => {
-        navigate('/');
+        onClose();
       }
     });
   };
@@ -167,7 +153,7 @@ function About() {
             )}
           </div>
         </div>
-        <div className="split-right">
+        <div className="split-right" onClick={handleOverlayClick}>
           <div style={{
             maxWidth: '600px',
             padding: '2rem',
@@ -188,7 +174,8 @@ function About() {
                 fontSize: '1.125rem',
                 lineHeight: '1.8',
                 fontWeight: '300',
-                color: 'rgba(255, 255, 255, 0.9)'
+                color: 'rgba(255, 255, 255, 0.9)',
+                whiteSpace: 'pre-wrap'
               }}>
                 {about.bio}
               </p>
@@ -197,7 +184,7 @@ function About() {
         </div>
       </div>
 
-      <div className="image-title-overlay" ref={titleOverlayRef} style={{ opacity: 0 }}>
+      <div className="image-title-overlay" ref={imageTitleOverlayRef} style={{ opacity: 0 }}>
         <div className="image-slide-number">
           <span>ABOUT</span>
         </div>
@@ -223,4 +210,4 @@ function About() {
   );
 }
 
-export default About;
+export default AboutDetail;

@@ -1,30 +1,55 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
 function AboutForm() {
-  const aboutData = useQuery(api.about.getAbout);
+  const about = useQuery(api.about.getAbout);
   const [title, setTitle] = useState('');
+  const [bioTitle, setBioTitle] = useState('');
   const [bio, setBio] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [currentImageUrl, setCurrentImageUrl] = useState('');
   const fileInputRef = useRef(null);
   
-  const generateUploadUrl = useMutation(api.about.generateUploadUrl);
   const updateAbout = useMutation(api.about.updateAbout);
+  const generateUploadUrl = useMutation(api.about.generateUploadUrl);
+  const saveFeaturedImage = useMutation(api.about.saveFeaturedImage);
 
-  // Set form values when data loads
-  useState(() => {
-    if (aboutData) {
-      setTitle(aboutData.title || '');
-      setBio(aboutData.bio || '');
-      setCurrentImageUrl(aboutData.url || '');
+  // Populate form when about data loads
+  useEffect(() => {
+    if (about) {
+      setTitle(about.title || '');
+      setBioTitle(about.bioTitle || '');
+      setBio(about.bio || '');
     }
-  }, [aboutData]);
+  }, [about]);
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files?.[0];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUploading(true);
+
+    try {
+      await updateAbout({
+        title,
+        bioTitle,
+        bio,
+      });
+      alert('About page updated successfully!');
+    } catch (error) {
+      console.error('Error updating about page:', error);
+      alert('Error updating about page');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0];
     if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
 
     setUploading(true);
 
@@ -41,12 +66,8 @@ function AboutForm() {
 
       const { storageId } = await result.json();
       
-      // Update about data with new image
-      await updateAbout({
-        title: title || 'Artist Name',
-        bio: bio || 'Artist bio goes here...',
-        storageId
-      });
+      // Save image record
+      await saveFeaturedImage({ storageId });
 
       // Reset file input
       if (fileInputRef.current) {
@@ -60,25 +81,6 @@ function AboutForm() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setUploading(true);
-
-    try {
-      await updateAbout({
-        title,
-        bio,
-        ...(aboutData?.storageId && { storageId: aboutData.storageId })
-      });
-      alert('About section updated successfully');
-    } catch (error) {
-      console.error('Error updating about:', error);
-      alert('Error updating about section');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
     <div style={{
       background: '#1a1a1a',
@@ -86,18 +88,80 @@ function AboutForm() {
       borderRadius: '8px',
       marginBottom: '2rem'
     }}>
-      <h2 style={{ marginBottom: '1.5rem' }}>About Section</h2>
+      <h2 style={{ marginBottom: '1.5rem' }}>About Page Settings</h2>
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Artist Name / Title
+            Featured Image
+          </label>
+          {about?.imageUrl && (
+            <div style={{ 
+              marginBottom: '1rem',
+              aspectRatio: '16/9',
+              maxWidth: '400px',
+              overflow: 'hidden',
+              borderRadius: '8px'
+            }}>
+              <img 
+                src={about.imageUrl} 
+                alt="Featured" 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'cover' 
+                }}
+              />
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelect}
+            disabled={uploading}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              background: '#2a2a2a',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              color: 'white',
+              marginBottom: '1rem'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+            Title (appears in overlay)
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter artist name or title"
+            placeholder="e.g., Mihai Darvasa"
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              background: '#2a2a2a',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              color: 'white',
+              fontSize: '16px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+            Bio Title
+          </label>
+          <input
+            type="text"
+            value={bioTitle}
+            onChange={(e) => setBioTitle(e.target.value)}
+            placeholder="e.g., About the Artist"
             style={{
               width: '100%',
               padding: '0.75rem',
@@ -112,13 +176,13 @@ function AboutForm() {
 
         <div style={{ marginBottom: '1.5rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Bio / Description
+            Bio Text
           </label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="Enter artist bio..."
-            rows={6}
+            placeholder="Tell your story..."
+            rows={8}
             style={{
               width: '100%',
               padding: '0.75rem',
@@ -127,80 +191,28 @@ function AboutForm() {
               borderRadius: '4px',
               color: 'white',
               fontSize: '16px',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              lineHeight: '1.6'
             }}
           />
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Featured Image
-          </label>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            disabled={uploading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: '#2a2a2a',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: 'white',
-              marginBottom: '1rem'
-            }}
-          />
-
-          {aboutData?.url && (
-            <div style={{ 
-              position: 'relative',
-              width: '100%',
-              maxWidth: '400px',
-              aspectRatio: '1',
-              background: '#2a2a2a',
-              borderRadius: '4px',
-              overflow: 'hidden'
-            }}>
-              <img
-                src={aboutData.url}
-                alt="About featured"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
-                }}
-              />
-            </div>
-          )}
-
-          {uploading && (
-            <p style={{ color: '#888', fontSize: '14px', marginTop: '0.5rem' }}>
-              Uploading image...
-            </p>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button
-            type="submit"
-            disabled={uploading}
-            style={{
-              padding: '0.75rem 2rem',
-              background: '#fff',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              fontWeight: '600',
-              opacity: uploading ? 0.5 : 1
-            }}
-          >
-            {uploading ? 'Saving...' : 'Save About Section'}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={uploading}
+          style={{
+            padding: '0.75rem 2rem',
+            background: '#fff',
+            color: '#000',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: uploading ? 'not-allowed' : 'pointer',
+            fontWeight: '600',
+            opacity: uploading ? 0.5 : 1
+          }}
+        >
+          {uploading ? 'Saving...' : 'Save About Page'}
+        </button>
       </form>
     </div>
   );
