@@ -8,6 +8,7 @@
 ## Navigation & UI Issues
 - Cannot close hamburger menu on mobile
 - Remove bottom panel on mobile or restyle ??
+- Bottom panel sound switch styling identical to reference
 
 ## Content & Typography Issues
 - Add subtitle to main header title
@@ -18,6 +19,7 @@
 
 ## Responsive Design Issues
 - Make responsive for tablets
+- Double click to open gallery item in Samsung Phones
 
 ## Performance Optimizations
 - Remove duplicate FashionGallery.jsx attachment in copilot-instructions.md (file is listed twice)

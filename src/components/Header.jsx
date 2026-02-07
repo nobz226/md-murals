@@ -80,7 +80,7 @@ function Header({ currentCategory, onAboutClick }) {
 
       {/* Desktop Navigation */}
       <div className="desktop-nav-values" ref={navValuesRef}>
-        <h3>+Menu</h3>
+        <h3>/Menu</h3>
         <ul>
           <li><Link to="/" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>All Work</Link></li>
           <li><Link to="/interior" onClick={() => playSound('nav-click')} onMouseEnter={() => playSound('nav-hover')}>Interior Murals</Link></li>
@@ -89,7 +89,7 @@ function Header({ currentCategory, onAboutClick }) {
         </ul>
       </div>
       <div className="desktop-nav-location" ref={navLocationRef}>
-        <h3>+Studio</h3>
+        <h3>/Studio</h3>
         <ul>
           <li><a href="#" onClick={handleAboutClick} onMouseEnter={() => playSound('nav-hover')}>About</a></li>
         </ul>
@@ -97,11 +97,11 @@ function Header({ currentCategory, onAboutClick }) {
         <p>British Columbia</p>
       </div>
       <div className="desktop-nav-contact" ref={navContactRef}>
-        <h3>+Connect</h3>
+        <h3>/Connect</h3>
         <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>info@mihaidarvasa.com</a></p>
       </div>
       <div className="desktop-nav-social" ref={navSocialRef}>
-        <h3>+Follow</h3>
+        <h3>/Follow</h3>
         <ul>
           <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer" onMouseEnter={() => playSound('nav-hover')}>Instagram</a></li>
           <li><a href="https://facebook.com/mihaidarvasa" target="_blank" rel="noopener noreferrer" onMouseEnter={() => playSound('nav-hover')}>Facebook</a></li>
@@ -111,7 +111,7 @@ function Header({ currentCategory, onAboutClick }) {
       {/* Mobile Menu Overlay */}
       <div className={`mobile-menu ${menuOpen ? 'mobile-menu-open' : ''}`}>
         <div className="mobile-menu-values">
-          <h3>+Menu</h3>
+          <h3>/Menu</h3>
           <ul>
             <li><Link to="/" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>All Work</Link></li>
             <li><Link to="/interior" onClick={() => { playSound('nav-click'); handleNavClick(); }} onMouseEnter={() => playSound('nav-hover')}>Interior Murals</Link></li>
@@ -120,17 +120,17 @@ function Header({ currentCategory, onAboutClick }) {
           </ul>
         </div>
         <div className="mobile-menu-location">
-          <h3>+Studio</h3>
+          <h3>/Studio</h3>
           <ul>
             <li><a href="#" onClick={handleAboutClick} onMouseEnter={() => playSound('nav-hover')}>About</a></li>
           </ul>
         </div>
         <div className="mobile-menu-contact">
-          <h3>+Connect</h3>
+          <h3>/Connect</h3>
           <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>info@mihaidarvasa.com</a></p>
         </div>
         <div className="mobile-menu-social">
-          <h3>+Follow</h3>
+          <h3>/Follow</h3>
           <ul>
             <li>
               <a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
