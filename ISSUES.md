@@ -8,6 +8,7 @@
 ## Navigation & UI Issues
 - Cannot close hamburger menu on mobile
 - Remove bottom panel on mobile or restyle ??
+- Bottom panel sound switch styling identical to reference
 
 ## Content & Typography Issues
 - Add subtitle to main header title
