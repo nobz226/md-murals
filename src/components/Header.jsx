@@ -93,12 +93,10 @@ function Header({ currentCategory, onAboutClick }) {
         <ul>
           <li><a href="#" onClick={handleAboutClick} onMouseEnter={() => playSound('nav-hover')}>About</a></li>
         </ul>
-        <p>Vancouver</p>
-        <p>British Columbia</p>
       </div>
       <div className="desktop-nav-contact" ref={navContactRef}>
         <h3>/Connect</h3>
-        <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>info@mihaidarvasa.com</a></p>
+        <p><a href="mailto:info@mihaidarvasa.com" onMouseEnter={() => playSound('nav-hover')}>Email</a></p>
       </div>
       <div className="desktop-nav-social" ref={navSocialRef}>
         <h3>/Follow</h3>

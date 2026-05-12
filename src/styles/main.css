@@ -738,6 +738,7 @@ h3 {
 .scaling-image-overlay::before,
 .scaling-image-overlay img {
   grid-area: 1 / 1;
+  overflow: hidden;
 }
 
 .scaling-image-overlay::before {
