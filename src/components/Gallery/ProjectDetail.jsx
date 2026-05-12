@@ -69,6 +69,7 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
       onComplete: () => {
         // After Flip completes, animate title overlay
         const overlayElement = imageTitleOverlayRef.current;
+        if (!overlayElement) return;
         const numberElement = overlayElement.querySelector('.image-slide-number span');
         const titleElement = overlayElement.querySelector('.image-slide-title h1');
         const descriptionElement = overlayElement.querySelector('.description-line');
@@ -146,6 +147,7 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
     if (!selectedItem || !scalingOverlayRef.current) return;
 
     const overlayElement = imageTitleOverlayRef.current;
+    if (!overlayElement) return;
     const numberElement = overlayElement.querySelector('.image-slide-number span');
     const titleElement = overlayElement.querySelector('.image-slide-title h1');
     const descriptionElement = overlayElement.querySelector('.description-line');
