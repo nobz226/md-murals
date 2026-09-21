@@ -3,12 +3,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import gsap from 'gsap';
 import { useNavigate } from 'react-router-dom';
-import { useSoundSystem } from '../hooks/useSoundSystem';
 
 function About() {
   const about = useQuery(api.about.getAbout);
   const navigate = useNavigate();
-  const { play: playSound } = useSoundSystem();
   const splitContainerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleOverlayRef = useRef(null);
@@ -16,7 +14,6 @@ function About() {
   useEffect(() => {
     if (!about) return;
 
-    playSound('open');
     document.body.classList.add('zoom-mode');
 
     const splitContainer = splitContainerRef.current;
@@ -82,7 +79,6 @@ function About() {
   }, [about]);
 
   const handleClose = () => {
-    playSound('close');
     
     const overlayElement = titleOverlayRef.current;
     const categoryElement = overlayElement.querySelector('.image-slide-number span');

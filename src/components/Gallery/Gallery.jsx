@@ -5,8 +5,6 @@ import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
 import { CustomEase } from 'gsap/dist/CustomEase';
 import { Flip } from 'gsap/dist/Flip';
 import ProjectDetail from './ProjectDetail';
-import Controls from '../Controls';
-import { useSoundSystem } from '../../hooks/useSoundSystem';
 
 // Register GSAP plugins
 gsap.registerPlugin(Draggable, InertiaPlugin, CustomEase, Flip);
@@ -17,15 +15,14 @@ function FashionGallery({ projects, category, aboutOpen }) {
   const gridContainerRef = useRef(null);
   const draggableRef = useRef(null);
   
-  const { play: playSound } = useSoundSystem();
-  
+  // Fixed zoom level (no zoom controls)
+  const FIXED_ZOOM = 0.6;
+
   // Get responsive grid configuration based on viewport
   const getResponsiveConfig = () => {
-    // Fixed item size like reference - 320px regardless of viewport
     return {
       itemSize: 320,
       baseGap: 16,
-      currentZoom: 0.6,
       currentGap: 32
     };
   };
@@ -34,10 +31,8 @@ function FashionGallery({ projects, category, aboutOpen }) {
   const calculateOptimalGrid = (numProjects) => {
     if (numProjects === 0) return { rows: 0, cols: 0 };
     
-    // Calculate columns based on aspect ratio preference (slightly wider than tall)
     let cols = Math.ceil(Math.sqrt(numProjects * 1.5));
     
-    // Limit columns to 6 on mobile viewports (600px and below)
     const isMobile = window.innerWidth <= 600;
     if (isMobile) {
       cols = Math.min(cols, 6);
@@ -50,7 +45,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
   
   const [config, setConfig] = useState(getResponsiveConfig());
 
-  const [currentZoom, setCurrentZoom] = useState(0.6);
   const [zoomState, setZoomState] = useState({
     isActive: false,
     selectedProject: null,
@@ -74,7 +68,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
   // Close zoom mode when category changes (navigation)
   useEffect(() => {
     if (zoomState.isActive) {
-      // Force cleanup of zoom mode state
       setZoomState({
         isActive: false,
         selectedProject: null,
@@ -91,7 +84,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
   // Close zoom mode when About is opened
   useEffect(() => {
     if (aboutOpen && zoomState.isActive) {
-      // Force cleanup of zoom mode state
       setZoomState({
         isActive: false,
         selectedProject: null,
@@ -117,34 +109,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [zoomState.isActive]);
 
-  // Handle zoom changes - recalculate grid and bounds
-  useEffect(() => {
-    if (!projects || projects.length === 0 || zoomState.isActive) return;
-    if (!gridItemsRef.current || gridItemsRef.current.length === 0) return;
-
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(currentZoom);
-    calculateGridDimensions(gap, rows, cols);
-
-    // Animate zoom change on canvas wrapper
-    gsap.to(canvasWrapperRef.current, {
-      scale: currentZoom,
-      duration: 0.8,
-      ease: customEaseRef.current || 'power2.inOut',
-      onUpdate: () => {
-        // Update bounds during zoom animation
-        if (draggableRef.current) {
-          const bounds = calculateBounds();
-          draggableRef.current.applyBounds(bounds);
-        }
-      },
-      onComplete: () => {
-        // Reinitialize draggable with new bounds
-        initDraggable();
-      }
-    });
-  }, [currentZoom]);
-
   // Initialize custom eases
   useEffect(() => {
     customEaseRef.current = CustomEase.create("smooth", ".87,0,.13,1");
@@ -160,33 +124,25 @@ function FashionGallery({ projects, category, aboutOpen }) {
     
     // Handle scroll wheel for gallery navigation
     const handleWheel = (e) => {
-      // Don't handle wheel events during zoom mode or if draggable isn't initialized
       if (zoomState.isActive || !draggableRef.current) return;
       
-      // Prevent default scroll behavior
       e.preventDefault();
       
-      // Get current position
       const currentX = gsap.getProperty(canvasWrapperRef.current, 'x');
       const currentY = gsap.getProperty(canvasWrapperRef.current, 'y');
       
-      // Calculate new position based on scroll delta
-      // Invert deltaY for natural scroll direction
       const scrollSpeed = 1.5;
       let newX = currentX - e.deltaX * scrollSpeed;
       let newY = currentY - e.deltaY * scrollSpeed;
       
-      // Get bounds to constrain movement
       const { rows, cols } = calculateOptimalGrid(projects.length);
-      const gap = calculateGapForZoom(currentZoom);
+      const gap = calculateGapForZoom(FIXED_ZOOM);
       calculateGridDimensions(gap, rows, cols);
       const bounds = calculateBounds();
       
-      // Constrain to bounds
       newX = Math.max(bounds.minX, Math.min(bounds.maxX, newX));
       newY = Math.max(bounds.minY, Math.min(bounds.maxY, newY));
       
-      // Update position with smooth animation
       gsap.to(canvasWrapperRef.current, {
         x: newX,
         y: newY,
@@ -195,7 +151,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
         overwrite: 'auto'
       });
       
-      // Update draggable position
       if (draggableRef.current) {
         draggableRef.current.update();
       }
@@ -207,31 +162,28 @@ function FashionGallery({ projects, category, aboutOpen }) {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [zoomState.isActive, projects, currentZoom]);
+  }, [zoomState.isActive, projects]);
 
   // Handle config changes from resize (regenerate grid without intro animation)
   useEffect(() => {
     if (!projects || projects.length === 0 || !gridContainerRef.current) return;
     
-    // Only regenerate if we already have items (this is a resize, not initial load)
     if (gridItemsRef.current.length > 0) {
       const { rows, cols } = calculateOptimalGrid(projects.length);
-      const gap = calculateGapForZoom(currentZoom);
+      const gap = calculateGapForZoom(FIXED_ZOOM);
       calculateGridDimensions(gap, rows, cols);
       
       generateGridItems();
       
-      // Make items visible immediately (skip intro animation)
       gsap.set(gridItemsRef.current.map(item => item.element), {
         opacity: 1
       });
       
-      // Recalculate position and bounds
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-      const marginX = Math.max(config.currentGap * currentZoom, 100);
-      const marginY = Math.max(config.currentGap * currentZoom, 200);
+      const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
+      const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
       const startX = marginX;
       const startY = marginY;
       
@@ -239,7 +191,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
       lastValidPositionRef.current.x = startX;
       lastValidPositionRef.current.y = startY;
       
-      // Reinitialize draggable with new bounds
       initDraggable();
     }
   }, [config]);
@@ -259,8 +210,8 @@ function FashionGallery({ projects, category, aboutOpen }) {
     gridDimensionsRef.current = {
       width: totalWidth,
       height: totalHeight,
-      scaledWidth: totalWidth * currentZoom,
-      scaledHeight: totalHeight * currentZoom,
+      scaledWidth: totalWidth * FIXED_ZOOM,
+      scaledHeight: totalHeight * FIXED_ZOOM,
       gap: gap,
       rows: rows,
       cols: cols
@@ -269,68 +220,13 @@ function FashionGallery({ projects, category, aboutOpen }) {
     return gridDimensionsRef.current;
   };
 
-  // Calculate optimal zoom to fit grid in viewport
-  const calculateAutoFitZoom = () => {
-    if (!projects || projects.length === 0) return 0.6;
-    
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    // Use base gap for calculation
-    const gap = 32;
-    const gridWidth = cols * (config.itemSize + gap) - gap;
-    const gridHeight = rows * (config.itemSize + gap) - gap;
-    
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    
-    // Target 85% of viewport to ensure good visibility with margins
-    const targetWidth = vw * 0.85;
-    const targetHeight = vh * 0.85;
-    
-    // Calculate zoom to fit
-    const zoomToFitWidth = targetWidth / gridWidth;
-    const zoomToFitHeight = targetHeight / gridHeight;
-    
-    // Use the smaller zoom to ensure both dimensions fit, cap at 1.0
-    return Math.min(zoomToFitWidth, zoomToFitHeight, 1.0);
-  };
-
-  // Set zoom level with animation
-  const handleSetZoom = (zoomLevel) => {
-    if (zoomState.isActive) return;
-    
-    // Play zoom sound
-    if (zoomLevel > currentZoom) {
-      playSound('zoom-in');
-    } else if (zoomLevel < currentZoom) {
-      playSound('zoom-out');
-    }
-    
-    setCurrentZoom(zoomLevel);
-  };
-
-  // Auto-fit zoom to viewport
-  const handleAutoFit = () => {
-    if (zoomState.isActive) return;
-    const fitZoom = calculateAutoFitZoom();
-    
-    // Play appropriate zoom sound
-    if (fitZoom > currentZoom) {
-      playSound('zoom-in');
-    } else if (fitZoom < currentZoom) {
-      playSound('zoom-out');
-    }
-    
-    setCurrentZoom(fitZoom);
-  };
-
   // Calculate viewport bounds
   const calculateBounds = () => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-    // Increase margin to allow viewing the full grid
-    const marginX = Math.max(config.currentGap * currentZoom, 100);
-    const marginY = Math.max(config.currentGap * currentZoom, 200);
+    const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
+    const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
     
     let minX, maxX, minY, maxY;
     
@@ -358,7 +254,7 @@ function FashionGallery({ projects, category, aboutOpen }) {
     }
 
     const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(currentZoom);
+    const gap = calculateGapForZoom(FIXED_ZOOM);
     calculateGridDimensions(gap, rows, cols);
     const bounds = calculateBounds();
 
@@ -381,7 +277,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
       },
       onDragStart: () => {
         document.body.classList.add("dragging");
-        playSound('drag-start');
         lastValidPositionRef.current.x = draggableRef.current.x;
         lastValidPositionRef.current.y = draggableRef.current.y;
       },
@@ -391,7 +286,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
       },
       onDragEnd: () => {
         document.body.classList.remove("dragging");
-        playSound('drag-end');
       }
     })[0];
   };
@@ -399,7 +293,7 @@ function FashionGallery({ projects, category, aboutOpen }) {
   // Generate grid items from projects
   const generateGridItems = () => {
     const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(currentZoom);
+    const gap = calculateGapForZoom(FIXED_ZOOM);
     calculateGridDimensions(gap, rows, cols);
 
     if (!canvasWrapperRef.current || !gridContainerRef.current) return;
@@ -413,11 +307,9 @@ function FashionGallery({ projects, category, aboutOpen }) {
     gridContainer.innerHTML = '';
     gridItemsRef.current = [];
 
-    // Create items only for available projects (no cycling/duplicates)
     let itemIndex = 0;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        // Stop if we've used all available projects
         if (itemIndex >= projects.length) {
           return;
         }
@@ -455,7 +347,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
           // Add click event
           item.addEventListener('click', () => {
             if (!zoomStateRef.current.isActive) {
-              playSound('click');
               enterZoomMode(itemData);
             }
           });
@@ -472,7 +363,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
   // Enter zoom mode
   const enterZoomMode = (itemData) => {
     console.log('enterZoomMode called', itemData);
-    playSound('open');
     
     setZoomState(prev => {
       const newState = {
@@ -491,7 +381,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
 
   // Exit zoom mode
   const exitZoomMode = () => {
-    playSound('close');
     setZoomState({
       isActive: false,
       selectedProject: null,
@@ -564,20 +453,18 @@ function FashionGallery({ projects, category, aboutOpen }) {
 
     gsap.set(viewportRef.current, { opacity: 0 });
 
-    // Use fixed zoom like reference (0.6)
-    gsap.set(canvasWrapperRef.current, { scale: currentZoom });
+    gsap.set(canvasWrapperRef.current, { scale: FIXED_ZOOM });
 
     const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(currentZoom);
+    const gap = calculateGapForZoom(FIXED_ZOOM);
     calculateGridDimensions(gap, rows, cols);
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
     
-    // Position grid with slight offset from top-left instead of center
-    const marginX = Math.max(config.currentGap * currentZoom, 100);
-    const marginY = Math.max(config.currentGap * currentZoom, 200);
+    const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
+    const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
     const startX = marginX;
     const startY = marginY;
 
@@ -616,15 +503,6 @@ function FashionGallery({ projects, category, aboutOpen }) {
           </div>
         </div>
       </div>
-
-      {!zoomState.isActive && !aboutOpen && (
-        <Controls 
-          currentZoom={currentZoom}
-          setCurrentZoom={handleSetZoom}
-          isZoomMode={zoomState.isActive}
-          onAutoFit={handleAutoFit}
-        />
-      )}
       
       {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
         <ProjectDetail

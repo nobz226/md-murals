@@ -7,7 +7,6 @@ import Footer from '../components/Footer';
 import Preloader from '../components/Preloader';
 import Gallery from '../components/Gallery/Gallery';
 import AboutDetail from '../components/Gallery/AboutDetail';
-import { useSoundSystem } from '../hooks/useSoundSystem';
 import gsap from 'gsap';
 
 gsap.registerPlugin(CustomEase);
@@ -20,7 +19,6 @@ function Home({ category, showAbout }) {
   
   const [aboutOpen, setAboutOpen] = useState(showAbout || false);
   const customEaseRef = useRef(null);
-  const { play: playSound } = useSoundSystem();
   
   // Query projects based on category
   const allProjects = useQuery(api.projects.getAllProjects);
@@ -76,13 +74,11 @@ function Home({ category, showAbout }) {
   }, [showPreloader]);
 
   const handleCloseAbout = () => {
-    playSound('close');
     setAboutOpen(false);
     document.body.classList.remove('zoom-mode');
   };
 
   const handleOpenAbout = () => {
-    playSound('open');
     setAboutOpen(true);
     document.body.classList.add('zoom-mode');
   };
