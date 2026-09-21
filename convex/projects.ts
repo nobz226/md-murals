@@ -138,7 +138,9 @@ export const deleteProject = mutation({
       .collect();
     
     for (const image of images) {
-      await ctx.storage.delete(image.storageId);
+      if (image.storageId) {
+        await ctx.storage.delete(image.storageId);
+      }
       await ctx.db.delete(image._id);
     }
     

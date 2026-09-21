@@ -48,7 +48,9 @@ export const deleteImage = mutation({
     const image = await ctx.db.get(args.imageId);
     if (!image) return;
     
-    await ctx.storage.delete(image.storageId);
+    if (image.storageId) {
+      await ctx.storage.delete(image.storageId);
+    }
     await ctx.db.delete(args.imageId);
   },
 });
