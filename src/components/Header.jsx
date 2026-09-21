@@ -9,6 +9,8 @@ function Header({ currentCategory, onAboutClick }) {
   const navLocationRef = useRef(null);
   const navContactRef = useRef(null);
   const navSocialRef = useRef(null);
+  const hamburgerRef = useRef(null);
+  const hamburgerLinesRef = useRef([]);
 
   useEffect(() => {
     // Fade in animations for header elements
@@ -35,6 +37,55 @@ function Header({ currentCategory, onAboutClick }) {
     });
   }, []);
 
+  // Animate hamburger to X
+  useEffect(() => {
+    if (!hamburgerRef.current) return;
+    
+    const lines = hamburgerLinesRef.current;
+    if (lines.length !== 3) return;
+
+    if (menuOpen) {
+      // Animate to X
+      gsap.to(lines[0], {
+        rotation: 45,
+        y: 5,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+      gsap.to(lines[1], {
+        opacity: 0,
+        duration: 0.2,
+        ease: 'power2.out'
+      });
+      gsap.to(lines[2], {
+        rotation: -45,
+        y: -5,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    } else {
+      // Animate back to hamburger
+      gsap.to(lines[0], {
+        rotation: 0,
+        y: 0,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+      gsap.to(lines[1], {
+        opacity: 1,
+        duration: 0.2,
+        ease: 'power2.out',
+        delay: 0.1
+      });
+      gsap.to(lines[2], {
+        rotation: 0,
+        y: 0,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    }
+  }, [menuOpen]);
+
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
@@ -57,7 +108,7 @@ function Header({ currentCategory, onAboutClick }) {
 
   return (
     <div className="header">
-      {/* Logo and Hamburger */}
+      {/* Logo */}
       <div className="nav-section" ref={logoRef}>
         <Link to="/" className="logo-container" onClick={handleNavClick}>
           <div className="logo-circles">
@@ -66,12 +117,20 @@ function Header({ currentCategory, onAboutClick }) {
           </div>
           <span className="logo-text">Mihai Darvasa</span>
         </Link>
-        <button className="hamburger" onClick={toggleMenu} aria-label="Toggle menu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
       </div>
+
+      {/* Hamburger - direct child of header for proper z-index stacking */}
+      <button 
+        ref={hamburgerRef}
+        className="hamburger" 
+        onClick={toggleMenu} 
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={menuOpen}
+      >
+        <span ref={(el) => { if (el) hamburgerLinesRef.current[0] = el; }}></span>
+        <span ref={(el) => { if (el) hamburgerLinesRef.current[1] = el; }}></span>
+        <span ref={(el) => { if (el) hamburgerLinesRef.current[2] = el; }}></span>
+      </button>
 
       {/* Desktop Navigation */}
       <div className="desktop-nav-values" ref={navValuesRef}>

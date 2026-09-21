@@ -93,23 +93,43 @@ body.zoom-mode {
   gap: 1rem;
 }
 
-/* Hamburger Menu */
 .hamburger {
+  grid-column: 12;
   display: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0.5rem;
   z-index: 10001;
+  position: relative;
+  width: 32px;
+  height: 24px;
+  justify-content: center;
+  align-self: start;
 }
 
 .hamburger span {
   width: 24px;
   height: 2px;
   background: white;
+  position: absolute;
+  left: 4px;
+  transform-origin: center center;
   transition: all 0.3s ease;
+}
+
+.hamburger span:nth-child(1) {
+  top: 4px;
+}
+
+.hamburger span:nth-child(2) {
+  top: 11px;
+}
+
+.hamburger span:nth-child(3) {
+  top: 18px;
 }
 
 .hamburger:hover span {
@@ -759,19 +779,23 @@ h3 {
     display: none;
   }
 
-  /* Show mobile menu when open */
-  .mobile-menu.mobile-menu-open {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.98);
-    z-index: 10000;
-    padding: 5rem 2rem 2rem 2rem;
-    overflow-y: auto;
-  }
+/* Show mobile menu when open */
+.mobile-menu.mobile-menu-open {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.98);
+  z-index: 10000;
+  padding: 5rem 2rem 2rem 2rem;
+  overflow-y: auto;
+}
+
+.hamburger {
+  z-index: 10001;
+}
 
   /* Mobile Menu Sections */
   .mobile-menu-values,
