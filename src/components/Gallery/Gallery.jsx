@@ -42,8 +42,9 @@ function FashionGallery({ projects, category, aboutOpen }) {
     
     const isMobile = window.innerWidth <= 600;
     if (isMobile) {
-      const maxRows = adminRows || 3;
-      return { rows: Math.min(maxRows, numProjects), cols: Math.ceil(numProjects / Math.min(maxRows, numProjects)) };
+      // On mobile, respect admin rows but cap at a reasonable max for usability
+      const mobileMaxRows = adminRows || 3;
+      return { rows: Math.min(mobileMaxRows, numProjects), cols: Math.ceil(numProjects / Math.min(mobileMaxRows, numProjects)) };
     }
     
     // Desktop: respect admin settings
@@ -292,13 +293,34 @@ function FashionGallery({ projects, category, aboutOpen }) {
     const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
     const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
     
+    const startPosition = gallerySettings?.startPosition || 'left';
+    
     let minX, maxX, minY, maxY;
     
     if (scaledWidth <= vw) {
-      minX = maxX = marginX;
+      // Gallery fits in viewport - center it or use startPosition
+      if (startPosition === 'center') {
+        minX = maxX = (vw - scaledWidth) / 2;
+      } else if (startPosition === 'right') {
+        minX = maxX = vw - scaledWidth - marginX;
+      } else {
+        minX = maxX = marginX;
+      }
     } else {
-      maxX = marginX;
-      minX = vw - scaledWidth - marginX;
+      // Gallery wider than viewport - draggable bounds
+      if (startPosition === 'center') {
+        // Can drag from center to left edge or right edge
+        maxX = (vw - scaledWidth) / 2;
+        minX = vw - scaledWidth - maxX;
+      } else if (startPosition === 'right') {
+        // Start from right, can drag left
+        maxX = vw - scaledWidth - marginX;
+        minX = marginX;
+      } else {
+        // Default left
+        maxX = marginX;
+        minX = vw - scaledWidth - marginX;
+      }
     }
     
     if (scaledHeight <= vh) {
