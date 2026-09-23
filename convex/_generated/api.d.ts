@@ -9,6 +9,7 @@
  */
 
 import type * as about from "../about.js";
+import type * as gallerySettings from "../gallerySettings.js";
 import type * as images from "../images.js";
 import type * as projects from "../projects.js";
 import type * as seed from "../seed.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   about: typeof about;
+  gallerySettings: typeof gallerySettings;
   images: typeof images;
   projects: typeof projects;
   seed: typeof seed;

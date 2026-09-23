@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import ProjectForm from '../components/Admin/ProjectForm';
 import ProjectList from '../components/Admin/ProjectList';
 import AboutForm from '../components/Admin/AboutForm';
+import GalleryControls from '../components/Admin/GalleryControls';
 import SeedButton from '../components/SeedButton';
 
 function Admin() {
@@ -100,6 +101,8 @@ function Admin() {
             onClose={handleFormClose}
           />
         )}
+
+        <GalleryControls />
 
         <AboutForm />
 

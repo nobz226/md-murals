@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import gsap from 'gsap';
 import { Draggable } from 'gsap/dist/Draggable';
 import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
@@ -15,13 +17,16 @@ function FashionGallery({ projects, category, aboutOpen }) {
   const gridContainerRef = useRef(null);
   const draggableRef = useRef(null);
   
+  // Fetch gallery settings from Convex
+  const gallerySettings = useQuery(api.gallerySettings.getGallerySettings);
+  
   // Fixed zoom level (no zoom controls)
   const FIXED_ZOOM = 0.6;
 
   // Get responsive grid configuration based on viewport
   const getResponsiveConfig = () => {
     return {
-      itemSize: 320,
+      itemSize: gallerySettings?.tileSize || 320,
       baseGap: 16,
       currentGap: 32
     };
@@ -31,21 +36,78 @@ function FashionGallery({ projects, category, aboutOpen }) {
   const calculateOptimalGrid = (numProjects) => {
     if (numProjects === 0) return { rows: 0, cols: 0 };
     
-    // Cap at 3 rows max for horizontal scrolling
-    const maxRows = 3;
-    const cols = Math.ceil(numProjects / maxRows);
+    // Use settings from admin if available
+    const adminRows = gallerySettings?.rows;
+    const adminCols = gallerySettings?.cols;
     
     const isMobile = window.innerWidth <= 600;
     if (isMobile) {
+      const maxRows = adminRows || 3;
       return { rows: Math.min(maxRows, numProjects), cols: Math.ceil(numProjects / Math.min(maxRows, numProjects)) };
     }
     
-    const rows = Math.min(maxRows, Math.ceil(numProjects / cols));
-    
-    return { rows, cols };
+    // Desktop: respect admin settings
+    if (adminRows && adminCols) {
+      // Both explicitly set - use them
+      return { rows: adminRows, cols: adminCols };
+    } else if (adminRows) {
+      // Only rows set - calculate cols
+      return { rows: adminRows, cols: Math.ceil(numProjects / adminRows) };
+    } else if (adminCols) {
+      // Only cols set - calculate rows
+      return { rows: Math.ceil(numProjects / adminCols), cols: adminCols };
+    } else {
+      // Neither set - default to 3 rows
+      const defaultRows = 3;
+      return { rows: defaultRows, cols: Math.ceil(numProjects / defaultRows) };
+    }
   };
   
   const [config, setConfig] = useState(getResponsiveConfig());
+
+  // Update config when gallery settings change
+  useEffect(() => {
+    setConfig(getResponsiveConfig());
+  }, [gallerySettings?.tileSize]);
+
+  // Recalculate grid and reinitialize when settings change
+  useEffect(() => {
+    if (projects && projects.length > 0 && gridContainerRef.current) {
+      const { rows, cols } = calculateOptimalGrid(projects.length);
+      const gap = calculateGapForZoom(FIXED_ZOOM);
+      calculateGridDimensions(gap, rows, cols);
+      
+      generateGridItems();
+      
+      gsap.set(gridItemsRef.current.map(item => item.element), {
+        opacity: 1
+      });
+      
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
+      const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
+      const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
+      
+      const startPosition = gallerySettings?.startPosition || 'left';
+      let startX;
+      
+      if (startPosition === 'center') {
+        startX = (vw - scaledWidth) / 2;
+      } else if (startPosition === 'right') {
+        startX = vw - scaledWidth - marginX;
+      } else {
+        startX = marginX;
+      }
+      const startY = marginY;
+      
+      gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
+      lastValidPositionRef.current.x = startX;
+      lastValidPositionRef.current.y = startY;
+      
+      initDraggable();
+    }
+  }, [gallerySettings?.rows, gallerySettings?.cols, gallerySettings?.startPosition, gallerySettings?.tileSize, projects?.length, category]);
 
   const [zoomState, setZoomState] = useState({
     isActive: false,
@@ -358,18 +420,27 @@ function FashionGallery({ projects, category, aboutOpen }) {
           
           item.addEventListener('mouseenter', () => {
             if (!zoomStateRef.current.isActive) {
-              gsap.to(item, { scale: 1.08, duration: 0.3, ease: 'center', overwrite: 'auto' });
+              // Tile hover zoom
+              if (gallerySettings?.enableTileHoverZoom !== false) {
+                gsap.to(item, { scale: 1.08, duration: 0.3, ease: 'center', overwrite: 'auto' });
+              }
               
               // Delayed image zoom (3 seconds)
-              hoverTimeout = setTimeout(() => {
-                gsap.to(img, { scale: 1.15, duration: 2, ease: 'center', overwrite: 'auto' });
-              }, 3000);
+              if (gallerySettings?.enableImageHoverZoom !== false) {
+                hoverTimeout = setTimeout(() => {
+                  gsap.to(img, { scale: 1.15, duration: 2, ease: 'center', overwrite: 'auto' });
+                }, 3000);
+              }
             }
           });
           item.addEventListener('mouseleave', () => {
             if (!zoomStateRef.current.isActive) {
-              gsap.to(item, { scale: 1, duration: 0.3, ease: 'center', overwrite: 'auto' });
-              gsap.to(img, { scale: 1, duration: 0.5, ease: 'center', overwrite: 'auto' });
+              if (gallerySettings?.enableTileHoverZoom !== false) {
+                gsap.to(item, { scale: 1, duration: 0.3, ease: 'center', overwrite: 'auto' });
+              }
+              if (gallerySettings?.enableImageHoverZoom !== false) {
+                gsap.to(img, { scale: 1, duration: 0.5, ease: 'center', overwrite: 'auto' });
+              }
               if (hoverTimeout) clearTimeout(hoverTimeout);
             }
           });
@@ -488,7 +559,19 @@ function FashionGallery({ projects, category, aboutOpen }) {
     
     const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
     const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
-    const startX = marginX;
+    
+    // Calculate startX based on startPosition setting
+    let startX;
+    const startPosition = gallerySettings?.startPosition || 'left';
+    
+    if (startPosition === 'center') {
+      startX = (vw - scaledWidth) / 2;
+    } else if (startPosition === 'right') {
+      startX = vw - scaledWidth - marginX;
+    } else {
+      startX = marginX;
+    }
+    
     const startY = marginY;
 
     gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
@@ -515,7 +598,7 @@ function FashionGallery({ projects, category, aboutOpen }) {
         draggableRef.current.kill();
       }
     };
-  }, [projects, category]);
+  }, [projects, category, gallerySettings?.tileSize, gallerySettings?.rows, gallerySettings?.cols, gallerySettings?.startPosition]);
 
   return (
     <>
