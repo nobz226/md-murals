@@ -352,14 +352,23 @@ function FashionGallery({ projects, category, aboutOpen }) {
           });
 
           // Hover zoom effect using GSAP (avoids inline style conflicts)
+          let hoverTimeout = null;
+          
           item.addEventListener('mouseenter', () => {
             if (!zoomStateRef.current.isActive) {
               gsap.to(item, { scale: 1.08, duration: 0.3, ease: 'center', overwrite: 'auto' });
+              
+              // Delayed image zoom (3 seconds)
+              hoverTimeout = setTimeout(() => {
+                gsap.to(img, { scale: 1.15, duration: 2, ease: 'center', overwrite: 'auto' });
+              }, 3000);
             }
           });
           item.addEventListener('mouseleave', () => {
             if (!zoomStateRef.current.isActive) {
               gsap.to(item, { scale: 1, duration: 0.3, ease: 'center', overwrite: 'auto' });
+              gsap.to(img, { scale: 1, duration: 0.5, ease: 'center', overwrite: 'auto' });
+              if (hoverTimeout) clearTimeout(hoverTimeout);
             }
           });
 
