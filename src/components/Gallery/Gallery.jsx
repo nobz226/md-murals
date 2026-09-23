@@ -351,6 +351,18 @@ function FashionGallery({ projects, category, aboutOpen }) {
             }
           });
 
+          // Hover zoom effect using GSAP (avoids inline style conflicts)
+          item.addEventListener('mouseenter', () => {
+            if (!zoomStateRef.current.isActive) {
+              gsap.to(item, { scale: 1.08, duration: 0.3, ease: 'center', overwrite: 'auto' });
+            }
+          });
+          item.addEventListener('mouseleave', () => {
+            if (!zoomStateRef.current.isActive) {
+              gsap.to(item, { scale: 1, duration: 0.3, ease: 'center', overwrite: 'auto' });
+            }
+          });
+
           gridContainer.appendChild(item);
           gridItemsRef.current.push(itemData);
         }
