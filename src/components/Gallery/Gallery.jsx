@@ -31,14 +31,16 @@ function FashionGallery({ projects, category, aboutOpen }) {
   const calculateOptimalGrid = (numProjects) => {
     if (numProjects === 0) return { rows: 0, cols: 0 };
     
-    let cols = Math.ceil(Math.sqrt(numProjects * 1.5));
+    // Cap at 3 rows max for horizontal scrolling
+    const maxRows = 3;
+    const cols = Math.ceil(numProjects / maxRows);
     
     const isMobile = window.innerWidth <= 600;
     if (isMobile) {
-      cols = Math.min(cols, 6);
+      return { rows: Math.min(maxRows, numProjects), cols: Math.ceil(numProjects / Math.min(maxRows, numProjects)) };
     }
     
-    const rows = Math.ceil(numProjects / cols);
+    const rows = Math.min(maxRows, Math.ceil(numProjects / cols));
     
     return { rows, cols };
   };
