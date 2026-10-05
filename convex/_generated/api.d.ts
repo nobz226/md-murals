@@ -9,10 +9,11 @@
  */
 
 import type * as about from "../about.js";
+import type * as adminAuth from "../adminAuth.js";
+import type * as gallerySettings from "../gallerySettings.js";
 import type * as images from "../images.js";
 import type * as projects from "../projects.js";
 import type * as seed from "../seed.js";
-import type * as sounds from "../sounds.js";
 
 import type {
   ApiFromModules,
@@ -22,10 +23,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   about: typeof about;
+  adminAuth: typeof adminAuth;
+  gallerySettings: typeof gallerySettings;
   images: typeof images;
   projects: typeof projects;
   seed: typeof seed;
-  sounds: typeof sounds;
 }>;
 
 /**

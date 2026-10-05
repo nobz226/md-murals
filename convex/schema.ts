@@ -52,4 +52,15 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
     updatedAt: v.number(),
   }),
+
+  gallerySettings: defineTable({
+    tileSize: v.number(),
+    rows: v.number(),
+    cols: v.number(),
+    startPosition: v.union(v.literal("left"), v.literal("center"), v.literal("right")),
+    enableTileHoverZoom: v.boolean(),
+    enableImageHoverZoom: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
 });
