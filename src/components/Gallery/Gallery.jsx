@@ -1,626 +1,362 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import gsap from 'gsap';
-import { Draggable } from 'gsap/dist/Draggable';
-import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
-import { CustomEase } from 'gsap/dist/CustomEase';
-import { Flip } from 'gsap/dist/Flip';
+import { gsap, Draggable, centerEase } from '../../utils/gsap';
 import ProjectDetail from './ProjectDetail';
 
-// Register GSAP plugins
-gsap.registerPlugin(Draggable, InertiaPlugin, CustomEase, Flip);
+// Fixed zoom level (no zoom controls)
+const ZOOM = 0.6;
+const GAP = 32;
+const MARGIN_X = 100;
+const MARGIN_Y = 200;
+const DEFAULT_TILE_SIZE = 320;
+const DEFAULT_ROWS = 3;
 
-function FashionGallery({ projects, category, aboutOpen }) {
+// Work out rows/cols for the grid. Columns grow if the admin-configured grid
+// is too small for every project, and empty trailing rows are dropped.
+function calculateGrid(numProjects, settings) {
+  if (numProjects === 0) return { rows: 0, cols: 0 };
+
+  const adminRows = settings?.rows || DEFAULT_ROWS;
+  const isMobile = window.innerWidth <= 600;
+
+  let rows = Math.min(adminRows, numProjects);
+  let cols = isMobile || !settings?.cols
+    ? Math.ceil(numProjects / rows)
+    : settings.cols;
+
+  if (rows * cols < numProjects) cols = Math.ceil(numProjects / rows);
+  rows = Math.ceil(numProjects / cols);
+
+  return { rows, cols };
+}
+
+function Gallery({ projects, category, aboutOpen }) {
   const viewportRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const gridContainerRef = useRef(null);
   const draggableRef = useRef(null);
-  
-  // Fetch gallery settings from Convex
-  const gallerySettings = useQuery(api.gallerySettings.getGallerySettings);
-  
-  // Fixed zoom level (no zoom controls)
-  const FIXED_ZOOM = 0.6;
-
-  // Get responsive grid configuration based on viewport
-  const getResponsiveConfig = () => {
-    return {
-      itemSize: gallerySettings?.tileSize || 320,
-      baseGap: 16,
-      currentGap: 32
-    };
-  };
-
-  // Calculate optimal grid layout for projects
-  const calculateOptimalGrid = (numProjects) => {
-    if (numProjects === 0) return { rows: 0, cols: 0 };
-    
-    // Use settings from admin if available
-    const adminRows = gallerySettings?.rows;
-    const adminCols = gallerySettings?.cols;
-    
-    const isMobile = window.innerWidth <= 600;
-    if (isMobile) {
-      // On mobile, respect admin rows but cap at a reasonable max for usability
-      const mobileMaxRows = adminRows || 3;
-      return { rows: Math.min(mobileMaxRows, numProjects), cols: Math.ceil(numProjects / Math.min(mobileMaxRows, numProjects)) };
-    }
-    
-    // Desktop: respect admin settings
-    if (adminRows && adminCols) {
-      // Both explicitly set - use them
-      return { rows: adminRows, cols: adminCols };
-    } else if (adminRows) {
-      // Only rows set - calculate cols
-      return { rows: adminRows, cols: Math.ceil(numProjects / adminRows) };
-    } else if (adminCols) {
-      // Only cols set - calculate rows
-      return { rows: Math.ceil(numProjects / adminCols), cols: adminCols };
-    } else {
-      // Neither set - default to 3 rows
-      const defaultRows = 3;
-      return { rows: defaultRows, cols: Math.ceil(numProjects / defaultRows) };
-    }
-  };
-  
-  const [config, setConfig] = useState(getResponsiveConfig());
-
-  // Update config when gallery settings change
-  useEffect(() => {
-    setConfig(getResponsiveConfig());
-  }, [gallerySettings?.tileSize]);
-
-  // Recalculate grid and reinitialize when settings change
-  useEffect(() => {
-    if (projects && projects.length > 0 && gridContainerRef.current) {
-      const { rows, cols } = calculateOptimalGrid(projects.length);
-      const gap = calculateGapForZoom(FIXED_ZOOM);
-      calculateGridDimensions(gap, rows, cols);
-      
-      generateGridItems();
-      
-      gsap.set(gridItemsRef.current.map(item => item.element), {
-        opacity: 1
-      });
-      
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-      const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
-      const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
-      
-      const startPosition = gallerySettings?.startPosition || 'left';
-      let startX;
-      
-      if (startPosition === 'center') {
-        startX = (vw - scaledWidth) / 2;
-      } else if (startPosition === 'right') {
-        startX = vw - scaledWidth - marginX;
-      } else {
-        startX = marginX;
-      }
-      const startY = marginY;
-      
-      gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
-      lastValidPositionRef.current.x = startX;
-      lastValidPositionRef.current.y = startY;
-      
-      initDraggable();
-    }
-  }, [gallerySettings?.rows, gallerySettings?.cols, gallerySettings?.startPosition, gallerySettings?.tileSize, projects?.length, category]);
-
-  const [zoomState, setZoomState] = useState({
-    isActive: false,
-    selectedProject: null,
-    selectedItem: null,
-    flipAnimation: null,
-    scalingOverlay: null
-  });
-  const zoomStateRef = useRef(zoomState);
-
   const gridItemsRef = useRef([]);
-  const gridDimensionsRef = useRef({});
-  const lastValidPositionRef = useRef({ x: 0, y: 0 });
-  const customEaseRef = useRef(null);
-  const centerEaseRef = useRef(null);
+  const layoutRef = useRef(null);
+  const introTimersRef = useRef([]);
 
-  // Keep zoomStateRef in sync with zoomState
-  useEffect(() => {
-    zoomStateRef.current = zoomState;
-  }, [zoomState]);
+  const gallerySettings = useQuery(api.gallerySettings.getGallerySettings);
+  const itemSize = gallerySettings?.tileSize || DEFAULT_TILE_SIZE;
+  const startPosition = gallerySettings?.startPosition || 'left';
 
-  // Close zoom mode when category changes (navigation)
-  useEffect(() => {
-    if (zoomState.isActive) {
-      setZoomState({
-        isActive: false,
-        selectedProject: null,
-        selectedItem: null,
-        flipAnimation: null,
-        scalingOverlay: null
-      });
-      
-      if (draggableRef.current) draggableRef.current.enable();
-      document.body.classList.remove('zoom-mode');
+  // The project currently open in the detail view ({ project, item }) or null
+  const [selected, setSelected] = useState(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  // Close the detail view when the category changes or About opens.
+  // Done during render so the body class handoff happens in a single commit.
+  const [prevCategory, setPrevCategory] = useState(category);
+  if (category !== prevCategory) {
+    setPrevCategory(category);
+    setSelected(null);
+  }
+  if (aboutOpen && selected) {
+    setSelected(null);
+  }
+
+  // Only projects with an image get a tile
+  const getVisibleProjects = () => projects.filter((p) => p.featuredImage);
+
+  // Grid size in unscaled and scaled pixels
+  const calculateLayout = () => {
+    const { rows, cols } = calculateGrid(getVisibleProjects().length, gallerySettings);
+    const width = Math.max(cols * (itemSize + GAP) - GAP, 0);
+    const height = Math.max(rows * (itemSize + GAP) - GAP, 0);
+    return { rows, cols, width, height, scaledWidth: width * ZOOM, scaledHeight: height * ZOOM };
+  };
+
+  // Drag bounds: locked to the start position when the grid fits the viewport,
+  // otherwise free to travel between both edges.
+  const calculateBounds = (layout) => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const { scaledWidth, scaledHeight } = layout;
+
+    let minX, maxX;
+    if (scaledWidth <= vw) {
+      if (startPosition === 'center') minX = maxX = (vw - scaledWidth) / 2;
+      else if (startPosition === 'right') minX = maxX = vw - scaledWidth - MARGIN_X;
+      else minX = maxX = MARGIN_X;
+    } else {
+      minX = vw - scaledWidth - MARGIN_X;
+      maxX = MARGIN_X;
     }
-  }, [category]);
 
-  // Close zoom mode when About is opened
-  useEffect(() => {
-    if (aboutOpen && zoomState.isActive) {
-      setZoomState({
-        isActive: false,
-        selectedProject: null,
-        selectedItem: null,
-        flipAnimation: null,
-        scalingOverlay: null
-      });
-      
-      if (draggableRef.current) draggableRef.current.enable();
-      document.body.classList.remove('zoom-mode');
+    let minY, maxY;
+    if (scaledHeight <= vh) {
+      minY = maxY = MARGIN_Y;
+    } else {
+      minY = vh - scaledHeight - MARGIN_Y;
+      maxY = MARGIN_Y;
     }
-  }, [aboutOpen]);
 
-  // Close zoom mode with Escape key
+    return { minX, maxX, minY, maxY };
+  };
+
+  const calculateStartPosition = (layout) => {
+    const vw = window.innerWidth;
+    const bounds = calculateBounds(layout);
+    let x;
+    if (startPosition === 'center') x = (vw - layout.scaledWidth) / 2;
+    else if (startPosition === 'right') x = vw - layout.scaledWidth - MARGIN_X;
+    else x = MARGIN_X;
+    return {
+      x: Math.max(bounds.minX, Math.min(bounds.maxX, x)),
+      y: MARGIN_Y
+    };
+  };
+
+  const initDraggable = () => {
+    if (draggableRef.current) draggableRef.current.kill();
+
+    draggableRef.current = Draggable.create(canvasWrapperRef.current, {
+      type: 'x,y',
+      bounds: calculateBounds(layoutRef.current),
+      edgeResistance: 0.8,
+      inertia: true,
+      throwProps: {
+        x: { velocity: 'auto', resistance: 300, end: (endValue) => Math.round(endValue) },
+        y: { velocity: 'auto', resistance: 300, end: (endValue) => Math.round(endValue) }
+      },
+      onDragStart: () => document.body.classList.add('dragging'),
+      onDragEnd: () => document.body.classList.remove('dragging')
+    })[0];
+
+    if (selectedRef.current) draggableRef.current.disable();
+  };
+
+  const createGridItem = (project, x, y) => {
+    const item = document.createElement('div');
+    item.className = 'grid-item';
+    item.style.left = `${x}px`;
+    item.style.top = `${y}px`;
+    item.style.width = `${itemSize}px`;
+    item.style.height = `${itemSize}px`;
+    item.style.opacity = '0';
+
+    const img = document.createElement('img');
+    img.src = project.featuredImage.url;
+    img.alt = project.title;
+    item.appendChild(img);
+
+    const itemData = { element: item, img, baseX: x, baseY: y, project };
+
+    item.addEventListener('click', () => {
+      if (!selectedRef.current) {
+        setSelected({ project, item: itemData });
+      }
+    });
+
+    // Hover zoom effect using GSAP (avoids inline style conflicts)
+    const tileHover = gallerySettings?.enableTileHoverZoom !== false;
+    const imageHover = gallerySettings?.enableImageHoverZoom !== false;
+    let hoverTimeout = null;
+
+    item.addEventListener('mouseenter', () => {
+      if (selectedRef.current) return;
+      if (tileHover) {
+        gsap.to(item, { scale: 1.08, duration: 0.3, ease: centerEase, overwrite: 'auto' });
+      }
+      // Delayed image zoom (3 seconds)
+      if (imageHover) {
+        hoverTimeout = setTimeout(() => {
+          gsap.to(img, { scale: 1.15, duration: 2, ease: centerEase, overwrite: 'auto' });
+        }, 3000);
+      }
+    });
+    item.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimeout);
+      if (selectedRef.current) return;
+      if (tileHover) {
+        gsap.to(item, { scale: 1, duration: 0.3, ease: centerEase, overwrite: 'auto' });
+      }
+      if (imageHover) {
+        gsap.to(img, { scale: 1, duration: 0.5, ease: centerEase, overwrite: 'auto' });
+      }
+    });
+
+    return itemData;
+  };
+
+  // Rebuild grid items from projects
+  const generateGridItems = (layout) => {
+    const gridContainer = gridContainerRef.current;
+    gridContainer.innerHTML = '';
+    gridItemsRef.current = [];
+
+    getVisibleProjects().forEach((project, index) => {
+      const row = Math.floor(index / layout.cols);
+      const col = index % layout.cols;
+      const itemData = createGridItem(project, col * (itemSize + GAP), row * (itemSize + GAP));
+      gridContainer.appendChild(itemData.element);
+      gridItemsRef.current.push(itemData);
+    });
+  };
+
+  const clearIntroTimers = () => {
+    introTimersRef.current.forEach(clearTimeout);
+    introTimersRef.current = [];
+  };
+
+  // Items fly out from the screen centre into their grid positions
+  const playIntroAnimation = (layout) => {
+    const canvasX = gsap.getProperty(canvasWrapperRef.current, 'x');
+    const canvasY = gsap.getProperty(canvasWrapperRef.current, 'y');
+    const centerX = (window.innerWidth / 2 - canvasX) / ZOOM - itemSize / 2;
+    const centerY = (window.innerHeight / 2 - canvasY) / ZOOM - itemSize / 2;
+
+    const items = gridItemsRef.current;
+    if (!items.length) return;
+    items.forEach((itemData, index) => {
+      gsap.set(itemData.element, {
+        left: centerX,
+        top: centerY,
+        scale: 0.8,
+        zIndex: items.length - index,
+        opacity: 0
+      });
+    });
+
+    gsap.to(items.map((item) => item.element), {
+      duration: 0.2,
+      left: (index) => items[index].baseX,
+      top: (index) => items[index].baseY,
+      scale: 1,
+      opacity: 1,
+      ease: 'power2.out',
+      stagger: { amount: 1.5, from: 'start', grid: [layout.rows, layout.cols] },
+      onComplete: () => {
+        items.forEach((itemData) => gsap.set(itemData.element, { zIndex: 1 }));
+      }
+    });
+  };
+
+  // Size, position and populate the grid, optionally with the intro animation
+  const layoutGrid = ({ intro }) => {
+    if (!canvasWrapperRef.current || !gridContainerRef.current) return;
+
+    clearIntroTimers();
+    const layout = calculateLayout();
+    layoutRef.current = layout;
+
+    const canvasWrapper = canvasWrapperRef.current;
+    canvasWrapper.style.width = `${layout.width}px`;
+    canvasWrapper.style.height = `${layout.height}px`;
+    const start = calculateStartPosition(layout);
+    gsap.set(canvasWrapper, { scale: ZOOM, x: start.x, y: start.y });
+
+    generateGridItems(layout);
+
+    if (!intro) {
+      gsap.set(gridItemsRef.current.map((item) => item.element), { opacity: 1 });
+      initDraggable();
+      return;
+    }
+
+    gsap.set(viewportRef.current, { opacity: 0 });
+    gsap.to(viewportRef.current, {
+      duration: 0.6,
+      opacity: 1,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        playIntroAnimation(layout);
+        introTimersRef.current.push(setTimeout(initDraggable, 1500));
+      }
+    });
+  };
+
+  // Latest versions of render-scoped functions, for long-lived window listeners
+  const layoutGridRef = useRef(layoutGrid);
+  layoutGridRef.current = layoutGrid;
+  const calculateBoundsRef = useRef(calculateBounds);
+  calculateBoundsRef.current = calculateBounds;
+
+  // Build the grid with the intro when projects, category or settings change.
+  // Waits for gallery settings so the grid isn't built twice on load.
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && zoomState.isActive) {
-        exitZoomMode();
+    if (gallerySettings === undefined) return;
+
+    // The grid is being rebuilt, so the open item no longer exists
+    if (selectedRef.current) setSelected(null);
+    layoutGrid({ intro: true });
+
+    return () => {
+      clearIntroTimers();
+      if (draggableRef.current) {
+        draggableRef.current.kill();
+        draggableRef.current = null;
       }
     };
+  }, [
+    projects,
+    category,
+    gallerySettings === undefined,
+    itemSize,
+    startPosition,
+    gallerySettings?.rows,
+    gallerySettings?.cols,
+    gallerySettings?.enableTileHoverZoom,
+    gallerySettings?.enableImageHoverZoom
+  ]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [zoomState.isActive]);
-
-  // Initialize custom eases
+  // Window listeners: resize rebuilds without the intro, wheel pans the grid
   useEffect(() => {
-    customEaseRef.current = CustomEase.create("smooth", ".87,0,.13,1");
-    centerEaseRef.current = CustomEase.create("center", ".25,.46,.45,.94");
-    
-    // Handle window resize
+    let resizeTimer = null;
     const handleResize = () => {
-      if (zoomState.isActive) return;
-      
-      const newConfig = getResponsiveConfig();
-      setConfig(newConfig);
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!selectedRef.current) layoutGridRef.current({ intro: false });
+      }, 150);
     };
-    
-    // Handle scroll wheel for gallery navigation
+
     const handleWheel = (e) => {
-      if (zoomState.isActive || !draggableRef.current) return;
-      
+      if (selectedRef.current || !draggableRef.current || !layoutRef.current) return;
+      if (document.body.classList.contains('zoom-mode')) return;
+
       e.preventDefault();
-      
+
+      const bounds = calculateBoundsRef.current(layoutRef.current);
+      const scrollSpeed = 1.5;
       const currentX = gsap.getProperty(canvasWrapperRef.current, 'x');
       const currentY = gsap.getProperty(canvasWrapperRef.current, 'y');
-      
-      const scrollSpeed = 1.5;
-      let newX = currentX - e.deltaX * scrollSpeed;
-      let newY = currentY - e.deltaY * scrollSpeed;
-      
-      const { rows, cols } = calculateOptimalGrid(projects.length);
-      const gap = calculateGapForZoom(FIXED_ZOOM);
-      calculateGridDimensions(gap, rows, cols);
-      const bounds = calculateBounds();
-      
-      newX = Math.max(bounds.minX, Math.min(bounds.maxX, newX));
-      newY = Math.max(bounds.minY, Math.min(bounds.maxY, newY));
-      
+      const newX = Math.max(bounds.minX, Math.min(bounds.maxX, currentX - e.deltaX * scrollSpeed));
+      const newY = Math.max(bounds.minY, Math.min(bounds.maxY, currentY - e.deltaY * scrollSpeed));
+
       gsap.to(canvasWrapperRef.current, {
         x: newX,
         y: newY,
         duration: 0.3,
         ease: 'power2.out',
-        overwrite: 'auto'
+        overwrite: 'auto',
+        onComplete: () => draggableRef.current?.update()
       });
-      
-      if (draggableRef.current) {
-        draggableRef.current.update();
-      }
     };
-    
+
     window.addEventListener('resize', handleResize);
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
+      clearTimeout(resizeTimer);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [zoomState.isActive, projects]);
+  }, []);
 
-  // Handle config changes from resize (regenerate grid without intro animation)
+  // While a project is open: lock dragging and switch the body to zoom mode
   useEffect(() => {
-    if (!projects || projects.length === 0 || !gridContainerRef.current) return;
-    
-    if (gridItemsRef.current.length > 0) {
-      const { rows, cols } = calculateOptimalGrid(projects.length);
-      const gap = calculateGapForZoom(FIXED_ZOOM);
-      calculateGridDimensions(gap, rows, cols);
-      
-      generateGridItems();
-      
-      gsap.set(gridItemsRef.current.map(item => item.element), {
-        opacity: 1
-      });
-      
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-      const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
-      const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
-      const startX = marginX;
-      const startY = marginY;
-      
-      gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
-      lastValidPositionRef.current.x = startX;
-      lastValidPositionRef.current.y = startY;
-      
-      initDraggable();
-    }
-  }, [config]);
-
-  // Calculate gap based on zoom level
-  const calculateGapForZoom = (zoomLevel) => {
-    if (zoomLevel >= 1.0) return 16;
-    else if (zoomLevel >= 0.6) return 32;
-    else return 64;
-  };
-
-  // Calculate grid dimensions
-  const calculateGridDimensions = (gap, rows, cols) => {
-    const totalWidth = cols * (config.itemSize + gap) - gap;
-    const totalHeight = rows * (config.itemSize + gap) - gap;
-    
-    gridDimensionsRef.current = {
-      width: totalWidth,
-      height: totalHeight,
-      scaledWidth: totalWidth * FIXED_ZOOM,
-      scaledHeight: totalHeight * FIXED_ZOOM,
-      gap: gap,
-      rows: rows,
-      cols: cols
-    };
-    
-    return gridDimensionsRef.current;
-  };
-
-  // Calculate viewport bounds
-  const calculateBounds = () => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-    const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
-    const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
-    
-    const startPosition = gallerySettings?.startPosition || 'left';
-    
-    let minX, maxX, minY, maxY;
-    
-    if (scaledWidth <= vw) {
-      // Gallery fits in viewport - center it or use startPosition
-      if (startPosition === 'center') {
-        minX = maxX = (vw - scaledWidth) / 2;
-      } else if (startPosition === 'right') {
-        minX = maxX = vw - scaledWidth - marginX;
-      } else {
-        minX = maxX = marginX;
-      }
-    } else {
-      // Gallery wider than viewport - draggable bounds
-      if (startPosition === 'center') {
-        // Can drag from center to left edge or right edge
-        maxX = (vw - scaledWidth) / 2;
-        minX = vw - scaledWidth - maxX;
-      } else if (startPosition === 'right') {
-        // Start from right, can drag left
-        maxX = vw - scaledWidth - marginX;
-        minX = marginX;
-      } else {
-        // Default left
-        maxX = marginX;
-        minX = vw - scaledWidth - marginX;
-      }
-    }
-    
-    if (scaledHeight <= vh) {
-      minY = maxY = marginY;
-    } else {
-      maxY = marginY;
-      minY = vh - scaledHeight - marginY;
-    }
-    
-    return { minX, maxX, minY, maxY };
-  };
-
-  // Initialize draggable
-  const initDraggable = () => {
-    if (draggableRef.current) {
-      draggableRef.current.kill();
-    }
-
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(FIXED_ZOOM);
-    calculateGridDimensions(gap, rows, cols);
-    const bounds = calculateBounds();
-
-    draggableRef.current = Draggable.create(canvasWrapperRef.current, {
-      type: "x,y",
-      bounds: bounds,
-      edgeResistance: 0.8,
-      inertia: true,
-      throwProps: {
-        x: {
-          velocity: "auto",
-          resistance: 300,
-          end: (endValue) => Math.round(endValue)
-        },
-        y: {
-          velocity: "auto",
-          resistance: 300,
-          end: (endValue) => Math.round(endValue)
-        }
-      },
-      onDragStart: () => {
-        document.body.classList.add("dragging");
-        lastValidPositionRef.current.x = draggableRef.current.x;
-        lastValidPositionRef.current.y = draggableRef.current.y;
-      },
-      onDrag: () => {
-        lastValidPositionRef.current.x = draggableRef.current.x;
-        lastValidPositionRef.current.y = draggableRef.current.y;
-      },
-      onDragEnd: () => {
-        document.body.classList.remove("dragging");
-      }
-    })[0];
-  };
-
-  // Generate grid items from projects
-  const generateGridItems = () => {
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(FIXED_ZOOM);
-    calculateGridDimensions(gap, rows, cols);
-
-    if (!canvasWrapperRef.current || !gridContainerRef.current) return;
-
-    const canvasWrapper = canvasWrapperRef.current;
-    const gridContainer = gridContainerRef.current;
-
-    canvasWrapper.style.width = gridDimensionsRef.current.width + 'px';
-    canvasWrapper.style.height = gridDimensionsRef.current.height + 'px';
-
-    gridContainer.innerHTML = '';
-    gridItemsRef.current = [];
-
-    let itemIndex = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        if (itemIndex >= projects.length) {
-          return;
-        }
-
-        const item = document.createElement('div');
-        item.className = 'grid-item';
-
-        const x = col * (config.itemSize + gap);
-        const y = row * (config.itemSize + gap);
-
-        item.style.left = `${x}px`;
-        item.style.top = `${y}px`;
-        item.style.width = `${config.itemSize}px`;
-        item.style.height = `${config.itemSize}px`;
-        item.style.opacity = '0';
-
-        const project = projects[itemIndex];
-        if (project && project.featuredImage) {
-          const img = document.createElement('img');
-          img.src = project.featuredImage.url;
-          img.alt = project.title;
-          item.appendChild(img);
-
-          const itemData = {
-            element: item,
-            img: img,
-            row: row,
-            col: col,
-            baseX: x,
-            baseY: y,
-            project: project,
-            index: gridItemsRef.current.length
-          };
-
-          // Add click event
-          item.addEventListener('click', () => {
-            if (!zoomStateRef.current.isActive) {
-              enterZoomMode(itemData);
-            }
-          });
-
-          // Hover zoom effect using GSAP (avoids inline style conflicts)
-          let hoverTimeout = null;
-          
-          item.addEventListener('mouseenter', () => {
-            if (!zoomStateRef.current.isActive) {
-              // Tile hover zoom
-              if (gallerySettings?.enableTileHoverZoom !== false) {
-                gsap.to(item, { scale: 1.08, duration: 0.3, ease: 'center', overwrite: 'auto' });
-              }
-              
-              // Delayed image zoom (3 seconds)
-              if (gallerySettings?.enableImageHoverZoom !== false) {
-                hoverTimeout = setTimeout(() => {
-                  gsap.to(img, { scale: 1.15, duration: 2, ease: 'center', overwrite: 'auto' });
-                }, 3000);
-              }
-            }
-          });
-          item.addEventListener('mouseleave', () => {
-            if (!zoomStateRef.current.isActive) {
-              if (gallerySettings?.enableTileHoverZoom !== false) {
-                gsap.to(item, { scale: 1, duration: 0.3, ease: 'center', overwrite: 'auto' });
-              }
-              if (gallerySettings?.enableImageHoverZoom !== false) {
-                gsap.to(img, { scale: 1, duration: 0.5, ease: 'center', overwrite: 'auto' });
-              }
-              if (hoverTimeout) clearTimeout(hoverTimeout);
-            }
-          });
-
-          gridContainer.appendChild(item);
-          gridItemsRef.current.push(itemData);
-        }
-        
-        itemIndex++;
-      }
-    }
-  };
-
-  // Enter zoom mode
-  const enterZoomMode = (itemData) => {
-    console.log('enterZoomMode called', itemData);
-    
-    setZoomState(prev => {
-      const newState = {
-        ...prev,
-        isActive: true,
-        selectedProject: itemData.project,
-        selectedItem: itemData
-      };
-      console.log('New zoom state:', newState);
-      return newState;
-    });
-
-    if (draggableRef.current) draggableRef.current.disable();
+    if (!selected) return;
+    draggableRef.current?.disable();
     document.body.classList.add('zoom-mode');
-  };
-
-  // Exit zoom mode
-  const exitZoomMode = () => {
-    setZoomState({
-      isActive: false,
-      selectedProject: null,
-      selectedItem: null,
-      flipAnimation: null,
-      scalingOverlay: null
-    });
-
-    if (draggableRef.current) draggableRef.current.enable();
-    document.body.classList.remove('zoom-mode');
-  };
-
-  // Intro animation
-  const playIntroAnimation = () => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const screenCenterX = vw / 2;
-    const screenCenterY = vh / 2;
-
-    const canvasStyle = getComputedStyle(canvasWrapperRef.current);
-    const canvasMatrix = new DOMMatrix(canvasStyle.transform);
-    const canvasX = canvasMatrix.m41;
-    const canvasY = canvasMatrix.m42;
-    const canvasScale = canvasMatrix.a;
-
-    const centerX = (screenCenterX - canvasX) / canvasScale - config.itemSize / 2;
-    const centerY = (screenCenterY - canvasY) / canvasScale - config.itemSize / 2;
-
-    gridItemsRef.current.forEach((itemData, index) => {
-      const zIndex = gridItemsRef.current.length - index;
-      gsap.set(itemData.element, {
-        left: centerX,
-        top: centerY,
-        scale: 0.8,
-        zIndex: zIndex,
-        opacity: 0
-      });
-    });
-
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    
-    gsap.to(
-      gridItemsRef.current.map(item => item.element),
-      {
-        duration: 0.2,
-        left: (index) => gridItemsRef.current[index].baseX,
-        top: (index) => gridItemsRef.current[index].baseY,
-        scale: 1,
-        opacity: 1,
-        ease: "power2.out",
-        stagger: {
-          amount: 1.5,
-          from: "start",
-          grid: [rows, cols]
-        },
-        onComplete: () => {
-          gridItemsRef.current.forEach((itemData) => {
-            gsap.set(itemData.element, { zIndex: 1 });
-          });
-        }
-      }
-    );
-  };
-
-  // Initialize on mount and when projects change
-  useEffect(() => {
-    if (!projects || projects.length === 0) {
-      return;
-    }
-
-    gsap.set(viewportRef.current, { opacity: 0 });
-
-    gsap.set(canvasWrapperRef.current, { scale: FIXED_ZOOM });
-
-    const { rows, cols } = calculateOptimalGrid(projects.length);
-    const gap = calculateGapForZoom(FIXED_ZOOM);
-    calculateGridDimensions(gap, rows, cols);
-
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const { scaledWidth, scaledHeight } = gridDimensionsRef.current;
-    
-    const marginX = Math.max(config.currentGap * FIXED_ZOOM, 100);
-    const marginY = Math.max(config.currentGap * FIXED_ZOOM, 200);
-    
-    // Calculate startX based on startPosition setting
-    let startX;
-    const startPosition = gallerySettings?.startPosition || 'left';
-    
-    if (startPosition === 'center') {
-      startX = (vw - scaledWidth) / 2;
-    } else if (startPosition === 'right') {
-      startX = vw - scaledWidth - marginX;
-    } else {
-      startX = marginX;
-    }
-    
-    const startY = marginY;
-
-    gsap.set(canvasWrapperRef.current, { x: startX, y: startY });
-    lastValidPositionRef.current.x = startX;
-    lastValidPositionRef.current.y = startY;
-
-    generateGridItems();
-
-    gsap.to(viewportRef.current, {
-      duration: 0.6,
-      opacity: 1,
-      ease: "power2.inOut",
-      onComplete: () => {
-        playIntroAnimation();
-
-        setTimeout(() => {
-          initDraggable();
-        }, 1500);
-      }
-    });
-
     return () => {
-      if (draggableRef.current) {
-        draggableRef.current.kill();
-      }
+      draggableRef.current?.enable();
+      document.body.classList.remove('zoom-mode');
     };
-  }, [projects, category, gallerySettings?.tileSize, gallerySettings?.rows, gallerySettings?.cols, gallerySettings?.startPosition]);
+  }, [selected]);
 
   return (
     <>
@@ -631,17 +367,17 @@ function FashionGallery({ projects, category, aboutOpen }) {
           </div>
         </div>
       </div>
-      
-      {zoomState.isActive && zoomState.selectedProject && zoomState.selectedItem && (
+
+      {selected && (
         <ProjectDetail
-          project={zoomState.selectedProject}
-          selectedItem={zoomState.selectedItem}
-          customEase={customEaseRef.current}
-          onClose={exitZoomMode}
+          key={selected.project._id}
+          project={selected.project}
+          selectedItem={selected.item}
+          onClose={() => setSelected(null)}
         />
       )}
     </>
   );
 }
 
-export default FashionGallery;
+export default Gallery;

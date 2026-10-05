@@ -1,126 +1,52 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import gsap from 'gsap';
+import { gsap, smoothEase } from '../../utils/gsap';
+import { animateTitleIn, animateTitleOut, CloseIcon } from './detailAnimations';
 
-function AboutDetail({ onClose, customEase }) {
+function AboutDetail({ onClose }) {
+  // undefined while loading, null if the About page hasn't been set up yet
   const about = useQuery(api.about.getAbout);
+  const isLoading = about === undefined;
   const splitContainerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const imageTitleOverlayRef = useRef(null);
+  const closingRef = useRef(false);
 
+  // Opening animation, once the content has loaded
   useEffect(() => {
-    if (!about) return;
+    if (isLoading) return;
 
-    const splitContainer = splitContainerRef.current;
-    
-    // Animate split screen container
-    gsap.to(splitContainer, {
-      opacity: 1,
-      duration: 1.2,
-      ease: customEase || 'power2.inOut'
-    });
-
-    // Animate title overlay
-    const overlayElement = imageTitleOverlayRef.current;
-    const numberElement = overlayElement.querySelector('.image-slide-number span');
-    const titleElement = overlayElement.querySelector('.image-slide-title h1');
-    const descriptionElement = overlayElement.querySelector('.description-line');
-
-    gsap.set(numberElement, { y: 20, opacity: 0 });
-    gsap.set(titleElement, { y: 60, opacity: 0 });
-    gsap.set(descriptionElement, { y: 20, opacity: 0 });
-
-    gsap.to(numberElement, {
-      duration: 0.6,
-      y: 0,
-      opacity: 1,
-      ease: 'power2.out',
-      delay: 0.1
-    });
-
-    gsap.to(titleElement, {
-      duration: 0.6,
-      y: 0,
-      opacity: 1,
-      ease: 'power2.out',
-      delay: 0.25
-    });
-
-    gsap.to(descriptionElement, {
-      duration: 0.6,
-      y: 0,
-      opacity: 1,
-      ease: 'power2.out',
-      delay: 0.4
-    });
-
-    gsap.to(overlayElement, {
-      opacity: 1,
-      duration: 0.3
-    });
-
-    // Animate close button
+    gsap.to(splitContainerRef.current, { opacity: 1, duration: 1.2, ease: smoothEase });
+    animateTitleIn(imageTitleOverlayRef.current, 0.1);
     gsap.fromTo(closeButtonRef.current,
       { x: 40, opacity: 0 },
       { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out', delay: 0.9 }
     );
-  }, [about, customEase]);
+  }, [isLoading]);
 
   const handleClose = () => {
-    if (!about) return;
+    if (closingRef.current || !splitContainerRef.current) return;
+    closingRef.current = true;
 
-    const overlayElement = imageTitleOverlayRef.current;
-    const numberElement = overlayElement.querySelector('.image-slide-number span');
-    const titleElement = overlayElement.querySelector('.image-slide-title h1');
-    const descriptionElement = overlayElement.querySelector('.description-line');
-
-    // Hide title overlay
-    gsap.to(overlayElement, {
-      opacity: 0,
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-
-    gsap.to(numberElement, {
-      duration: 0.4,
-      y: -20,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    gsap.to(titleElement, {
-      duration: 0.4,
-      y: -60,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    gsap.to(descriptionElement, {
-      duration: 0.4,
-      y: -20,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    // Hide close button
-    gsap.to(closeButtonRef.current, {
-      duration: 0.3,
-      opacity: 0,
-      x: 40,
-      ease: 'power2.in'
-    });
-
-    // Hide split screen
+    animateTitleOut(imageTitleOverlayRef.current);
+    gsap.to(closeButtonRef.current, { duration: 0.3, opacity: 0, x: 40, ease: 'power2.in' });
     gsap.to(splitContainerRef.current, {
       opacity: 0,
       duration: 0.8,
       ease: 'power2.out',
-      onComplete: () => {
-        onClose();
-      }
+      onComplete: onClose
     });
   };
+
+  // Close with Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -128,21 +54,22 @@ function AboutDetail({ onClose, customEase }) {
     }
   };
 
-  if (!about) return null;
+  if (isLoading) return null;
+  const content = about || {};
 
   return (
     <>
-      <div 
-        className="split-screen-container active" 
+      <div
+        className="split-screen-container active"
         ref={splitContainerRef}
         style={{ opacity: 0 }}
       >
         <div className="split-left" onClick={handleOverlayClick}>
           <div className="zoom-target" id="zoomTarget">
-            {about.imageUrl && (
-              <img 
-                src={about.imageUrl} 
-                alt={about.title || 'About'} 
+            {content.imageUrl && (
+              <img
+                src={content.imageUrl}
+                alt={content.title || 'About'}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -159,17 +86,17 @@ function AboutDetail({ onClose, customEase }) {
             padding: '2rem',
             color: 'white'
           }}>
-            {about.bioTitle && (
+            {content.bioTitle && (
               <h2 style={{
                 fontSize: '2.5rem',
                 fontWeight: '500',
                 marginBottom: '2rem',
                 letterSpacing: '-0.02em'
               }}>
-                {about.bioTitle}
+                {content.bioTitle}
               </h2>
             )}
-            {about.bio && (
+            {content.bio && (
               <p style={{
                 fontSize: '1.125rem',
                 lineHeight: '1.8',
@@ -177,7 +104,7 @@ function AboutDetail({ onClose, customEase }) {
                 color: 'rgba(255, 255, 255, 0.9)',
                 whiteSpace: 'pre-wrap'
               }}>
-                {about.bio}
+                {content.bio}
               </p>
             )}
           </div>
@@ -189,22 +116,21 @@ function AboutDetail({ onClose, customEase }) {
           <span>ABOUT</span>
         </div>
         <div className="image-slide-title">
-          <h1>{about.title || 'Mihai Darvasa'}</h1>
+          <h1>{content.title || 'Mihai Darvasa'}</h1>
         </div>
         <div className="image-slide-description">
           <span className="description-line">Artist & Muralist</span>
         </div>
       </div>
 
-      <button 
-        className="close-button active" 
+      <button
+        className="close-button active"
         ref={closeButtonRef}
         onClick={handleClose}
+        aria-label="Close about"
         style={{ opacity: 0 }}
       >
-        <svg width="64" height="64" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7.89873 16L6.35949 14.48L11.8278 9.08H0V6.92H11.8278L6.35949 1.52L7.89873 0L16 8L7.89873 16Z" fill="white" />
-        </svg>
+        <CloseIcon />
       </button>
     </>
   );

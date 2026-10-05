@@ -1,228 +1,156 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQuery } from 'convex/react';
+import { useEffect, useState } from 'react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { errorMessage, useAdmin, useAdminMutation } from './AdminContext';
+
+const FIELDS = ['tileSize', 'rows', 'cols', 'startPosition', 'enableTileHoverZoom', 'enableImageHoverZoom'];
+
+const pickSettings = (source) => Object.fromEntries(FIELDS.map((key) => [key, source[key]]));
+
+const NUMBER_LIMITS = {
+  tileSize: [100, 800],
+  rows: [1, 10],
+  cols: [1, 30]
+};
+
+// Bring a typed number into its allowed range ('' or invalid becomes the minimum)
+const clampField = (key, value) => {
+  const [min, max] = NUMBER_LIMITS[key];
+  const n = parseInt(value, 10);
+  return Number.isNaN(n) ? min : Math.min(max, Math.max(min, n));
+};
 
 function GalleryControls() {
   const settings = useQuery(api.gallerySettings.getGallerySettings);
-  const updateSettings = useMutation(api.gallerySettings.updateGallerySettings);
-  const resetSettings = useMutation(api.gallerySettings.resetGallerySettings);
-  
-  const [localSettings, setLocalSettings] = useState({
-    tileSize: 320,
-    rows: 3,
-    cols: 13,
-    startPosition: 'left',
-    enableTileHoverZoom: true,
-    enableImageHoverZoom: true,
-  });
+  const updateSettings = useAdminMutation(api.gallerySettings.updateGallerySettings);
+  const resetSettings = useAdminMutation(api.gallerySettings.resetGallerySettings);
+  const { toast } = useAdmin();
+
+  const [local, setLocal] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Sync local settings with server settings
   useEffect(() => {
-    if (settings) {
-      setLocalSettings({
-        tileSize: settings.tileSize,
-        rows: settings.rows,
-        cols: settings.cols,
-        startPosition: settings.startPosition,
-        enableTileHoverZoom: settings.enableTileHoverZoom,
-        enableImageHoverZoom: settings.enableImageHoverZoom,
-      });
-    }
+    if (settings) setLocal(pickSettings(settings));
   }, [settings]);
 
-  const handleChange = (key, value) => {
-    const newSettings = { ...localSettings, [key]: value };
-    setLocalSettings(newSettings);
-  };
+  if (!local) return <div className="admin-empty">Loading settings…</div>;
+
+  const isDirty = FIELDS.some((key) => local[key] !== settings[key]);
+  const set = (key, value) => setLocal((s) => ({ ...s, [key]: value }));
+  // Number inputs keep whatever is typed and are clamped when they lose focus
+  const numberProps = (key) => ({
+    type: 'number',
+    className: 'admin-input',
+    min: NUMBER_LIMITS[key][0],
+    max: NUMBER_LIMITS[key][1],
+    value: local[key],
+    onChange: (e) => set(key, e.target.value === '' ? '' : parseInt(e.target.value, 10)),
+    onBlur: () => set(key, clampField(key, local[key]))
+  });
 
   const handleSave = async () => {
+    setSaving(true);
     try {
-      await updateSettings(localSettings);
-      alert('Gallery settings saved!');
+      const clamped = { ...local };
+      for (const key of Object.keys(NUMBER_LIMITS)) clamped[key] = clampField(key, local[key]);
+      setLocal(clamped);
+      await updateSettings(clamped);
+      toast('Gallery settings saved. The homepage updates right away.');
     } catch (error) {
-      console.error('Error saving gallery settings:', error);
-      alert('Error saving settings');
+      toast(errorMessage(error), 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleReset = async () => {
-    if (!confirm('Reset all gallery settings to defaults?')) return;
+    if (!confirm('Reset all gallery settings to their defaults?')) return;
     try {
-      const result = await resetSettings();
-      setLocalSettings({
-        tileSize: result.tileSize,
-        rows: result.rows,
-        cols: result.cols,
-        startPosition: result.startPosition,
-        enableTileHoverZoom: result.enableTileHoverZoom,
-        enableImageHoverZoom: result.enableImageHoverZoom,
-      });
-      alert('Settings reset to defaults!');
+      await resetSettings();
+      toast('Settings reset to defaults');
     } catch (error) {
-      console.error('Error resetting gallery settings:', error);
-      alert('Error resetting settings');
+      toast(errorMessage(error), 'error');
     }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    background: '#2a2a2a',
-    border: '1px solid #444',
-    borderRadius: '4px',
-    color: 'white',
-    fontSize: '16px',
-    fontFamily: 'inherit',
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontWeight: '500',
-  };
-
-  const sectionStyle = {
-    marginBottom: '1.5rem',
-  };
-
-  const checkboxStyle = {
-    marginRight: '0.75rem',
-    width: '18px',
-    height: '18px',
-    accentColor: '#fff',
-  };
-
   return (
-    <div style={{
-      background: '#1a1a1a',
-      padding: '2rem',
-      borderRadius: '8px',
-      marginBottom: '2rem'
-    }}>
-      <h2 style={{ marginBottom: '1.5rem' }}>Gallery Controls</h2>
-
-      <div style={{ marginBottom: '1rem', fontSize: '14px', color: '#888', lineHeight: '1.6' }}>
-        Configure the homepage gallery grid layout and hover effects. 
-        Changes take effect immediately on the homepage.
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Tile Size (px)</label>
-          <input
-            type="number"
-            value={localSettings.tileSize}
-            onChange={(e) => handleChange('tileSize', parseInt(e.target.value) || 320)}
-            min="100"
-            max="800"
-            step="10"
-            style={inputStyle}
-          />
+    <div className="admin-stack">
+      <section className="admin-card">
+        <h3 className="admin-card-title">Grid</h3>
+        <p className="admin-hint admin-card-intro">
+          Projects fill the grid row by row. If there are more projects than rows × columns,
+          extra columns are added automatically so nothing is hidden. On phones, columns are
+          always calculated automatically.
+        </p>
+        <div className="admin-form-grid">
+          <label className="admin-field">
+            <span className="admin-label">Tile size (px)</span>
+            <input {...numberProps('tileSize')} step="10" />
+            <span className="admin-hint">100–800 before the gallery's 60% zoom</span>
+          </label>
+          <label className="admin-field">
+            <span className="admin-label">Rows</span>
+            <input {...numberProps('rows')} />
+          </label>
+          <label className="admin-field">
+            <span className="admin-label">Columns</span>
+            <input {...numberProps('cols')} />
+          </label>
         </div>
+      </section>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Rows</label>
-          <input
-            type="number"
-            value={localSettings.rows}
-            onChange={(e) => handleChange('rows', parseInt(e.target.value) || 3)}
-            min="1"
-            max="10"
-            step="1"
-            style={inputStyle}
-          />
+      <section className="admin-card">
+        <h3 className="admin-card-title">Start position</h3>
+        <p className="admin-hint admin-card-intro">Where the grid sits when the page loads.</p>
+        <div className="admin-segmented" role="radiogroup" aria-label="Start position">
+          {['left', 'center', 'right'].map((position) => (
+            <button
+              key={position}
+              role="radio"
+              aria-checked={local.startPosition === position}
+              className={local.startPosition === position ? 'is-active' : ''}
+              onClick={() => set('startPosition', position)}
+            >
+              {position[0].toUpperCase() + position.slice(1)}
+            </button>
+          ))}
         </div>
+      </section>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Columns</label>
-          <input
-            type="number"
-            value={localSettings.cols}
-            onChange={(e) => handleChange('cols', parseInt(e.target.value) || 13)}
-            min="1"
-            max="30"
-            step="1"
-            style={inputStyle}
-          />
-        </div>
-
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Start Position</label>
-          <select
-            value={localSettings.startPosition}
-            onChange={(e) => handleChange('startPosition', e.target.value)}
-            style={inputStyle}
-          >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-          </select>
-        </div>
-      </div>
-
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '1rem',
-        padding: '1.5rem',
-        background: '#2a2a2a',
-        borderRadius: '8px',
-        marginBottom: '2rem'
-      }}>
-        <h3 style={{ marginBottom: '1rem', fontSize: '16px' }}>Hover Effects</h3>
-        
-        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={localSettings.enableTileHoverZoom}
-            onChange={(e) => handleChange('enableTileHoverZoom', e.target.checked)}
-            style={checkboxStyle}
-          />
-          <span>Tile Hover Zoom (tile scales to 1.08x)</span>
+      <section className="admin-card">
+        <h3 className="admin-card-title">Hover effects</h3>
+        <label className="admin-toggle">
+          <input type="checkbox" checked={local.enableTileHoverZoom}
+            onChange={(e) => set('enableTileHoverZoom', e.target.checked)} />
+          <span className="admin-toggle-track" />
+          <span>
+            <strong>Tile zoom</strong>
+            <span className="admin-hint">The tile grows slightly under the cursor</span>
+          </span>
         </label>
-        
-        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={localSettings.enableImageHoverZoom}
-            onChange={(e) => handleChange('enableImageHoverZoom', e.target.checked)}
-            style={checkboxStyle}
-          />
-          <span>Image Hover Zoom (image zooms after 3s delay)</span>
+        <label className="admin-toggle">
+          <input type="checkbox" checked={local.enableImageHoverZoom}
+            onChange={(e) => set('enableImageHoverZoom', e.target.checked)} />
+          <span className="admin-toggle-track" />
+          <span>
+            <strong>Slow image zoom</strong>
+            <span className="admin-hint">After 3 seconds of hovering, the image slowly zooms in</span>
+          </span>
         </label>
-      </div>
+      </section>
 
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <button
-          onClick={handleSave}
-          style={{
-            padding: '0.75rem 2rem',
-            background: '#fff',
-            color: '#000',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px',
-          }}
-        >
-          Save Settings
+      <div className="admin-sticky-actions">
+        <button className="admin-btn admin-btn-primary" onClick={handleSave} disabled={!isDirty || saving}>
+          {saving ? 'Saving…' : 'Save settings'}
         </button>
-        <button
-          onClick={handleReset}
-          style={{
-            padding: '0.75rem 2rem',
-            background: 'transparent',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px',
-          }}
-        >
-          Reset to Defaults
+        {isDirty && (
+          <button className="admin-btn admin-btn-ghost" onClick={() => setLocal(pickSettings(settings))}>
+            Discard changes
+          </button>
+        )}
+        <button className="admin-btn admin-btn-ghost admin-push-right" onClick={handleReset}>
+          Reset to defaults
         </button>
       </div>
     </div>

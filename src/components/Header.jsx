@@ -2,7 +2,64 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 
-function Header({ currentCategory, onAboutClick }) {
+const CATEGORY_LINKS = [
+  { to: '/', label: 'All Work' },
+  { to: '/interior', label: 'Interior Murals' },
+  { to: '/exterior', label: 'Exterior Murals' },
+  { to: '/canvas', label: 'Canvas' }
+];
+
+// Each Bio entry opens the About panel
+const BIO_ITEMS = ['Artist', 'Plant Lover', 'Explorer', 'Dad'];
+
+// Set PLANT_SHOP_URL to show the Plant Shop link
+const PLANT_SHOP_URL = null;
+const SOCIAL_LINKS = [
+  { href: 'https://instagram.com/mihaidarvasa', label: 'Instagram' },
+  { href: 'https://facebook.com/mihaidarvasa', label: 'Facebook' },
+  ...(PLANT_SHOP_URL ? [{ href: PLANT_SHOP_URL, label: 'Plant Shop' }] : [])
+];
+
+function NavLinks({ onNavClick }) {
+  return (
+    <>
+      <h3>/Menu</h3>
+      <ul>
+        {CATEGORY_LINKS.map(({ to, label }) => (
+          <li key={to}><Link to={to} onClick={onNavClick}>{label}</Link></li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function BioLinks({ onAboutClick }) {
+  return (
+    <>
+      <h3>/Bio</h3>
+      <ul>
+        {BIO_ITEMS.map((label) => (
+          <li key={label}><a href="#about" onClick={onAboutClick}>{label}</a></li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function ConnectLinks() {
+  return (
+    <>
+      <h3>/Connect</h3>
+      <ul>
+        {SOCIAL_LINKS.map(({ href, label }) => (
+          <li key={label}><a href={href} target="_blank" rel="noopener noreferrer">{label}</a></li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function Header({ onAboutClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const logoRef = useRef(null);
   const navValuesRef = useRef(null);
@@ -133,59 +190,25 @@ function Header({ currentCategory, onAboutClick }) {
 
       {/* Desktop Navigation */}
       <div className="desktop-nav-values" ref={navValuesRef}>
-        <h3>/Menu</h3>
-        <ul>
-          <li><Link to="/" onClick={handleNavClick}>All Work</Link></li>
-          <li><Link to="/interior" onClick={handleNavClick}>Interior Murals</Link></li>
-          <li><Link to="/exterior" onClick={handleNavClick}>Exterior Murals</Link></li>
-          <li><Link to="/canvas" onClick={handleNavClick}>Canvas</Link></li>
-        </ul>
+        <NavLinks onNavClick={handleNavClick} />
       </div>
       <div className="desktop-nav-bio" ref={navBioRef}>
-        <h3>/Bio</h3>
-        <ul>
-          <li><a href="#">Artist</a></li>
-          <li><a href="#">Plant Lover</a></li>
-          <li><a href="#">Explorer</a></li>
-          <li><a href="#">Dad</a></li>
-        </ul>
+        <BioLinks onAboutClick={handleAboutClick} />
       </div>
       <div className="desktop-nav-connect" ref={navConnectRef}>
-        <h3>/Connect</h3>
-        <ul>
-          <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-          <li><a href="https://facebook.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Facebook</a></li>
-          <li><a href="#">Plant Shop</a></li>
-        </ul>
+        <ConnectLinks />
       </div>
 
       {/* Mobile Menu Overlay */}
       <div className={`mobile-menu ${menuOpen ? 'mobile-menu-open' : ''}`}>
         <div className="mobile-menu-values">
-          <h3>/Menu</h3>
-          <ul>
-            <li><Link to="/" onClick={handleNavClick}>All Work</Link></li>
-            <li><Link to="/interior" onClick={handleNavClick}>Interior Murals</Link></li>
-            <li><Link to="/exterior" onClick={handleNavClick}>Exterior Murals</Link></li>
-            <li><Link to="/canvas" onClick={handleNavClick}>Canvas</Link></li>
-          </ul>
+          <NavLinks onNavClick={handleNavClick} />
         </div>
         <div className="mobile-menu-bio">
-          <h3>/Bio</h3>
-          <ul>
-            <li><a href="#">Artist</a></li>
-            <li><a href="#">Plant Lover</a></li>
-            <li><a href="#">Explorer</a></li>
-            <li><a href="#">Dad</a></li>
-          </ul>
+          <BioLinks onAboutClick={handleAboutClick} />
         </div>
         <div className="mobile-menu-connect">
-          <h3>/Connect</h3>
-          <ul>
-            <li><a href="https://instagram.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-            <li><a href="https://facebook.com/mihaidarvasa" target="_blank" rel="noopener noreferrer">Facebook</a></li>
-            <li><a href="#">Plant Shop</a></li>
-          </ul>
+          <ConnectLinks />
         </div>
       </div>
     </div>

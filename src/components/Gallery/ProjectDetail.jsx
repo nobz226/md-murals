@@ -1,122 +1,71 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import gsap from 'gsap';
-import { Flip } from 'gsap/dist/Flip';
+import { gsap, Flip, smoothEase } from '../../utils/gsap';
 import { Fancybox } from '@fancyapps/ui';
 import '@fancyapps/ui/dist/fancybox/fancybox.css';
+import { animateTitleIn, animateTitleOut, CloseIcon } from './detailAnimations';
 
-gsap.registerPlugin(Flip);
-
-function ProjectDetail({ project, selectedItem, onClose, customEase }) {
+function ProjectDetail({ project, selectedItem, onClose }) {
   // Fetch all images for this project
   const projectImages = useQuery(api.images.getProjectImages, { projectId: project._id });
   const splitContainerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const imageTitleOverlayRef = useRef(null);
   const scalingOverlayRef = useRef(null);
+  const closingRef = useRef(false);
 
+  // Opening animation: runs once when the detail view mounts
   useEffect(() => {
-    if (!selectedItem || !project || !projectImages) return;
+    const sourceImg = selectedItem.img;
 
     // Create scaling overlay from source image
-    const createScalingOverlay = (sourceImg) => {
-      const overlay = document.createElement('div');
-      overlay.className = 'scaling-image-overlay';
-      overlay.style.backgroundImage = `url(${sourceImg.src})`;
-      overlay.style.backgroundSize = 'cover';
-      overlay.style.backgroundPosition = '50% 50%';
-      const img = document.createElement('img');
-      img.src = sourceImg.src;
-      img.alt = sourceImg.alt;
-      overlay.appendChild(img);
-      document.body.appendChild(overlay);
-      
-      const sourceRect = sourceImg.getBoundingClientRect();
-      gsap.set(overlay, {
-        left: sourceRect.left,
-        top: sourceRect.top,
-        width: sourceRect.width,
-        height: sourceRect.height,
-        opacity: 1
-      });
-      
-      return overlay;
-    };
+    const overlay = document.createElement('div');
+    overlay.className = 'scaling-image-overlay';
+    overlay.style.backgroundImage = `url(${sourceImg.src})`;
+    overlay.style.backgroundSize = 'cover';
+    overlay.style.backgroundPosition = '50% 50%';
+    const img = document.createElement('img');
+    img.src = sourceImg.src;
+    img.alt = sourceImg.alt;
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
 
-    // Hide source image
-    gsap.set(selectedItem.img, { opacity: 0 });
+    const sourceRect = sourceImg.getBoundingClientRect();
+    gsap.set(overlay, {
+      left: sourceRect.left,
+      top: sourceRect.top,
+      width: sourceRect.width,
+      height: sourceRect.height,
+      opacity: 1
+    });
+    scalingOverlayRef.current = overlay;
 
-    // Create and animate scaling overlay
-    const scalingOverlay = createScalingOverlay(selectedItem.img);
-    scalingOverlayRef.current = scalingOverlay;
+    // Hide source image while the overlay stands in for it
+    gsap.set(sourceImg, { opacity: 0 });
 
     const splitContainer = splitContainerRef.current;
     const zoomTarget = splitContainer.querySelector('.zoom-target');
 
-    // Animate split screen container
-    gsap.to(splitContainer, {
-      opacity: 1,
-      duration: 1.2,
-      ease: customEase || 'power2.inOut'
-    });
+    gsap.to(splitContainer, { opacity: 1, duration: 1.2, ease: smoothEase });
 
-    // Flip animation from grid item to zoom target
-    Flip.fit(scalingOverlay, zoomTarget, {
+    // Flip animation from grid item to zoom target, then reveal the title
+    Flip.fit(overlay, zoomTarget, {
       duration: 1.2,
-      ease: customEase || 'power2.inOut',
+      ease: smoothEase,
       absolute: true,
       onComplete: () => {
-        // After Flip completes, animate title overlay
-        const overlayElement = imageTitleOverlayRef.current;
-        if (!overlayElement) return;
-        const numberElement = overlayElement.querySelector('.image-slide-number span');
-        const titleElement = overlayElement.querySelector('.image-slide-title h1');
-        const descriptionElement = overlayElement.querySelector('.description-line');
-
-        gsap.set(numberElement, { y: 20, opacity: 0 });
-        gsap.set(titleElement, { y: 60, opacity: 0 });
-        gsap.set(descriptionElement, { y: 20, opacity: 0 });
-
-        gsap.to(numberElement, {
-          duration: 0.6,
-          y: 0,
-          opacity: 1,
-          ease: 'power2.out',
-          delay: 0.1
-        });
-
-        gsap.to(titleElement, {
-          duration: 0.6,
-          y: 0,
-          opacity: 1,
-          ease: 'power2.out',
-          delay: 0.25
-        });
-
-        gsap.to(descriptionElement, {
-          duration: 0.6,
-          y: 0,
-          opacity: 1,
-          ease: 'power2.out',
-          delay: 0.4
-        });
-
-        gsap.to(overlayElement, {
-          opacity: 1,
-          duration: 0.3
-        });
+        if (imageTitleOverlayRef.current) animateTitleIn(imageTitleOverlayRef.current, 0.1);
       }
     });
 
-    // Animate close button
     gsap.fromTo(closeButtonRef.current,
       { x: 40, opacity: 0 },
       { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out', delay: 0.9 }
     );
 
-    // Initialize Fancybox after animations
-    setTimeout(() => {
+    // Bind the lightbox once the opening animation has finished
+    const fancyboxTimer = setTimeout(() => {
       Fancybox.bind('[data-fancybox="gallery"]', {
         infinite: true,
         Toolbar: {
@@ -129,92 +78,43 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
       });
     }, 1200);
 
-    // Cleanup
     return () => {
-      // Restore source image visibility
-      if (selectedItem && selectedItem.img) {
-        gsap.set(selectedItem.img, { opacity: 1 });
-      }
-      
-      if (scalingOverlayRef.current) {
-        scalingOverlayRef.current.remove();
-      }
+      clearTimeout(fancyboxTimer);
       Fancybox.destroy();
+      gsap.killTweensOf(overlay);
+      overlay.remove();
+      scalingOverlayRef.current = null;
+      // Restore source image visibility
+      gsap.set(sourceImg, { opacity: 1 });
     };
-  }, [selectedItem, project, customEase, projectImages]);
+  }, []);
 
   const handleClose = () => {
-    if (!selectedItem || !scalingOverlayRef.current) return;
+    if (closingRef.current || !scalingOverlayRef.current) return;
+    closingRef.current = true;
 
-    const overlayElement = imageTitleOverlayRef.current;
-    if (!overlayElement) return;
-    const numberElement = overlayElement.querySelector('.image-slide-number span');
-    const titleElement = overlayElement.querySelector('.image-slide-title h1');
-    const descriptionElement = overlayElement.querySelector('.description-line');
+    animateTitleOut(imageTitleOverlayRef.current);
 
-    // Hide title overlay
-    gsap.to(overlayElement, {
-      opacity: 0,
-      duration: 0.3,
-      ease: 'power2.out'
-    });
+    gsap.to(closeButtonRef.current, { duration: 0.3, opacity: 0, x: 40, ease: 'power2.in' });
+    gsap.to(splitContainerRef.current, { opacity: 0, duration: 0.8, ease: 'power2.out' });
 
-    gsap.to(numberElement, {
-      duration: 0.4,
-      y: -20,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    gsap.to(titleElement, {
-      duration: 0.4,
-      y: -60,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    gsap.to(descriptionElement, {
-      duration: 0.4,
-      y: -20,
-      opacity: 0,
-      ease: 'power2.out'
-    });
-
-    // Hide close button
-    gsap.to(closeButtonRef.current, {
-      duration: 0.3,
-      opacity: 0,
-      x: 40,
-      ease: 'power2.in'
-    });
-
-    // Hide split screen
-    gsap.to(splitContainerRef.current, {
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    });
-
-    // Reverse Flip animation back to grid item
+    // Reverse Flip animation back to grid item; unmount cleans up the overlay
     Flip.fit(scalingOverlayRef.current, selectedItem.element, {
       duration: 1.2,
-      ease: customEase || 'power2.inOut',
+      ease: smoothEase,
       absolute: true,
-      onComplete: () => {
-        // Restore source image
-        gsap.set(selectedItem.img, { opacity: 1 });
-        
-        // Remove overlay
-        if (scalingOverlayRef.current) {
-          scalingOverlayRef.current.remove();
-          scalingOverlayRef.current = null;
-        }
-
-        // Call parent close
-        onClose();
-      }
+      onComplete: onClose
     });
   };
+
+  // Close with Escape (unless the lightbox is open and handles it itself)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !Fancybox.getInstance()) handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -222,12 +122,10 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
     }
   };
 
-  if (!project) return null;
-
   return (
     <>
-      <div 
-        className="split-screen-container active" 
+      <div
+        className="split-screen-container active"
         ref={splitContainerRef}
         style={{ opacity: 0 }}
       >
@@ -265,15 +163,14 @@ function ProjectDetail({ project, selectedItem, onClose, customEase }) {
         </div>
       </div>
 
-      <button 
-        className="close-button active" 
+      <button
+        className="close-button active"
         ref={closeButtonRef}
         onClick={handleClose}
+        aria-label="Close project"
         style={{ opacity: 0 }}
       >
-        <svg width="64" height="64" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7.89873 16L6.35949 14.48L11.8278 9.08H0V6.92H11.8278L6.35949 1.52L7.89873 0L16 8L7.89873 16Z" fill="white" />
-        </svg>
+        <CloseIcon />
       </button>
     </>
   );

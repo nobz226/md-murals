@@ -1,117 +1,91 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import ProjectForm from '../components/Admin/ProjectForm';
-import ProjectList from '../components/Admin/ProjectList';
-import AboutForm from '../components/Admin/AboutForm';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AdminProvider, useAdmin } from '../components/Admin/AdminContext';
+import LoginScreen from '../components/Admin/LoginScreen';
+import ProjectsPanel from '../components/Admin/ProjectsPanel';
 import GalleryControls from '../components/Admin/GalleryControls';
-import SeedButton from '../components/SeedButton';
+import AboutForm from '../components/Admin/AboutForm';
+import DevTools from '../components/Admin/DevTools';
+import '../styles/admin.css';
 
-function Admin() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingProject, setEditingProject] = useState(null);
-  
-  const projects = useQuery(api.projects.getAllProjects);
-  const deleteProject = useMutation(api.projects.deleteProject);
-  const createProject = useMutation(api.projects.createProject);
+const SECTIONS = [
+  { id: 'projects', label: 'Projects', description: 'Add, edit and order the work shown in the gallery', component: ProjectsPanel },
+  { id: 'gallery', label: 'Gallery Layout', description: 'Grid size, start position and hover effects on the homepage', component: GalleryControls },
+  { id: 'about', label: 'About Page', description: 'Photo and bio shown in the About panel', component: AboutForm },
+  // Seeding and clearing data is only offered in local development
+  ...(import.meta.env.DEV
+    ? [{ id: 'dev', label: 'Dev Tools', description: 'Seed sample data or clear the database (development only)', component: DevTools }]
+    : [])
+];
 
-  // Allow scrolling on admin page
-  useEffect(() => {
-    document.body.style.overflow = 'auto';
-    document.body.style.height = 'auto';
-    document.body.style.cursor = 'default';
-    
-    return () => {
-      document.body.style.overflow = 'hidden';
-      document.body.style.height = '100vh';
-      document.body.style.cursor = 'grab';
-    };
-  }, []);
+function getInitialSection() {
+  const hash = window.location.hash.slice(1);
+  return SECTIONS.some((s) => s.id === hash) ? hash : 'projects';
+}
 
-  const handleEdit = (project) => {
-    setEditingProject(project);
-    setShowForm(true);
-  };
+function Dashboard() {
+  const { logout } = useAdmin();
+  const [sectionId, setSectionId] = useState(getInitialSection);
+  const section = SECTIONS.find((s) => s.id === sectionId);
+  const Panel = section.component;
 
-  const handleDelete = async (projectId) => {
-    if (confirm('Are you sure you want to delete this project?')) {
-      await deleteProject({ id: projectId });
-    }
-  };
-
-  const handleFormClose = () => {
-    setShowForm(false);
-    setEditingProject(null);
-  };
-
-  const handleNewProject = async () => {
-    // Create a draft project immediately
-    const projectId = await createProject({
-      title: 'New Project',
-      description: 'Enter description here',
-      category: 'interior'
-    });
-    
-    // Open form in edit mode with the new project
-    const newProject = projects?.find(p => p._id === projectId) || {
-      _id: projectId,
-      title: 'New Project',
-      description: 'Enter description here',
-      category: 'interior'
-    };
-    setEditingProject(newProject);
-    setShowForm(true);
+  const selectSection = (id) => {
+    setSectionId(id);
+    window.history.replaceState(null, '', `#${id}`);
   };
 
   return (
-    <div style={{ 
-      padding: '2rem', 
-      color: 'white',
-      minHeight: '100vh',
-      background: '#000'
-    }}>
-      <SeedButton />
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '2rem'
-        }}>
-          <h1>Admin Dashboard</h1>
-          <button 
-            onClick={handleNewProject}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#fff',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            + New Project
-          </button>
+    <div className="admin-layout">
+      <aside className="admin-sidebar">
+        <div className="admin-brand">
+          <span className="admin-brand-dot" />
+          MD Murals
         </div>
+        <nav className="admin-nav">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              className={`admin-nav-item ${s.id === sectionId ? 'is-active' : ''}`}
+              onClick={() => selectSection(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </nav>
+        <div className="admin-sidebar-footer">
+          <Link to="/" className="admin-btn admin-btn-ghost admin-btn-block">View site</Link>
+          <button className="admin-btn admin-btn-ghost admin-btn-block" onClick={logout}>Log out</button>
+        </div>
+      </aside>
 
-        {showForm && (
-          <ProjectForm 
-            project={editingProject}
-            onClose={handleFormClose}
-          />
-        )}
+      <main className="admin-main">
+        <header className="admin-page-header">
+          <h1>{section.label}</h1>
+          <p>{section.description}</p>
+        </header>
+        <Panel />
+      </main>
+    </div>
+  );
+}
 
-        <GalleryControls />
+function AdminGate() {
+  const { adminKey } = useAdmin();
+  return adminKey ? <Dashboard /> : <LoginScreen />;
+}
 
-        <AboutForm />
+function Admin() {
+  // The public site locks body scrolling; the admin needs a normal page
+  useEffect(() => {
+    document.body.classList.add('admin-page');
+    return () => document.body.classList.remove('admin-page');
+  }, []);
 
-        <ProjectList 
-          projects={projects || []}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      </div>
+  return (
+    <div className="admin">
+      <AdminProvider>
+        <AdminGate />
+      </AdminProvider>
     </div>
   );
 }

@@ -1,7 +1,10 @@
 import { mutation } from "./_generated/server";
+import { adminKeyArg, assertAdmin } from "./adminAuth";
 
 export const clearData = mutation({
-  handler: async (ctx) => {
+  args: adminKeyArg,
+  handler: async (ctx, args) => {
+    assertAdmin(args.adminKey);
     const projects = await ctx.db.query("projects").collect();
     const images = await ctx.db.query("images").collect();
     const sounds = await ctx.db.query("sounds").collect();
@@ -32,7 +35,9 @@ export const clearData = mutation({
 });
 
 export const seedData = mutation({
-  handler: async (ctx) => {
+  args: adminKeyArg,
+  handler: async (ctx, args) => {
+    assertAdmin(args.adminKey);
     // Check if we already have projects
     const existing = await ctx.db.query("projects").first();
     if (existing) {
@@ -167,7 +172,9 @@ export const seedData = mutation({
 
 // Seed example sounds (free sound effects from freesound.org and similar sources)
 export const seedSounds = mutation({
-  handler: async (ctx) => {
+  args: adminKeyArg,
+  handler: async (ctx, args) => {
+    assertAdmin(args.adminKey);
     // Check if we already have sounds
     const existing = await ctx.db.query("sounds").first();
     if (existing) {

@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { adminKeyArg, assertAdmin } from "./adminAuth";
 
 const DEFAULT_SETTINGS = {
   tileSize: 320,
@@ -14,17 +15,15 @@ const DEFAULT_SETTINGS = {
 export const getGallerySettings = query({
   handler: async (ctx) => {
     const settings = await ctx.db.query("gallerySettings").first();
-    if (!settings) {
-      // Return defaults if not set
-      return DEFAULT_SETTINGS;
-    }
-    return settings;
+    // Return defaults if not set
+    return settings ?? DEFAULT_SETTINGS;
   },
 });
 
 // Update gallery settings
 export const updateGallerySettings = mutation({
   args: {
+    ...adminKeyArg,
     tileSize: v.optional(v.number()),
     rows: v.optional(v.number()),
     cols: v.optional(v.number()),
@@ -33,52 +32,40 @@ export const updateGallerySettings = mutation({
     enableImageHoverZoom: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const { adminKey, ...fields } = args;
+    assertAdmin(adminKey);
     const now = Date.now();
     const existing = await ctx.db.query("gallerySettings").first();
-    
-    const updates = { updatedAt: now };
-    if (args.tileSize !== undefined) updates.tileSize = args.tileSize;
-    if (args.rows !== undefined) updates.rows = args.rows;
-    if (args.cols !== undefined) updates.cols = args.cols;
-    if (args.startPosition !== undefined) updates.startPosition = args.startPosition;
-    if (args.enableTileHoverZoom !== undefined) updates.enableTileHoverZoom = args.enableTileHoverZoom;
-    if (args.enableImageHoverZoom !== undefined) updates.enableImageHoverZoom = args.enableImageHoverZoom;
+
+    // Drop fields that weren't provided
+    const updates = Object.fromEntries(
+      Object.entries(fields).filter(([, value]) => value !== undefined)
+    ) as Partial<typeof fields>;
 
     if (existing) {
-      await ctx.db.patch(existing._id, updates);
-      // Return updated settings without createdAt
-      const { createdAt, ...rest } = existing;
-      return { ...rest, ...updates };
-    } else {
-      const id = await ctx.db.insert("gallerySettings", {
-        ...DEFAULT_SETTINGS,
-        ...updates,
-        createdAt: now,
-      });
-      return { _id: id, ...DEFAULT_SETTINGS, ...updates };
+      await ctx.db.patch(existing._id, { ...updates, updatedAt: now });
+      return { ...existing, ...updates, updatedAt: now };
     }
+    const doc = { ...DEFAULT_SETTINGS, ...updates, createdAt: now, updatedAt: now };
+    const id = await ctx.db.insert("gallerySettings", doc);
+    return { _id: id, ...doc };
   },
 });
 
 // Reset to defaults
 export const resetGallerySettings = mutation({
-  handler: async (ctx) => {
+  args: adminKeyArg,
+  handler: async (ctx, args) => {
+    assertAdmin(args.adminKey);
     const existing = await ctx.db.query("gallerySettings").first();
     const now = Date.now();
-    
+
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        ...DEFAULT_SETTINGS,
-        updatedAt: now,
-      });
+      await ctx.db.patch(existing._id, { ...DEFAULT_SETTINGS, updatedAt: now });
       return { ...existing, ...DEFAULT_SETTINGS, updatedAt: now };
-    } else {
-      const id = await ctx.db.insert("gallerySettings", {
-        ...DEFAULT_SETTINGS,
-        createdAt: now,
-        updatedAt: now,
-      });
-      return { _id: id, ...DEFAULT_SETTINGS };
     }
+    const doc = { ...DEFAULT_SETTINGS, createdAt: now, updatedAt: now };
+    const id = await ctx.db.insert("gallerySettings", doc);
+    return { _id: id, ...doc };
   },
 });
