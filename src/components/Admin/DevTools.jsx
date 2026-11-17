@@ -32,7 +32,7 @@ function DevTools() {
       <section className="admin-card">
         <h3 className="admin-card-title">Sample data</h3>
         <p className="admin-hint admin-card-intro">
-          Adds 39 placeholder projects (13 per category) with Unsplash images. Only runs on an empty database.
+          Adds 39 placeholder projects (9 interior, 15 exterior, 15 canvas) using free Unsplash mural and painting photos, plus a placeholder About panel if none exists. Only runs on an empty database.
         </p>
         <div className="admin-actions">
           <button className="admin-btn admin-btn-primary" onClick={() => run(seedData)} disabled={busy}>Seed projects</button>
